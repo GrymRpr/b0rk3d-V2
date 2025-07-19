@@ -104,6 +104,7 @@ namespace YimMenu
 		// physical
 		void SetCollision(bool enabled);
 		void SetFrozen(bool enabled);
+		void SetScale(float scale); // ADDED THIS
 		void Delete();
 
 		// networking

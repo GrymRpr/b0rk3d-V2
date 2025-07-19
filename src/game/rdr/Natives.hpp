@@ -10851,6 +10851,7 @@ namespace PATHFIND
 
 namespace PED
 {
+    extern void _SET_PED_MOVEMENT_SPEED_OVERRIDE(Ped ped, float speed);
 	FORCEINLINE constexpr Ped CREATE_PED(Hash PedModelHashKey, float VecNewCoorsX, float VecNewCoorsY, float VecNewCoorsZ, float fPedHeading, BOOL RegisterAsNetworkObject, BOOL ScriptHostObject, BOOL p7, BOOL p8) { return YimMenu::NativeInvoker::Invoke<3525, Ped, false>(PedModelHashKey, VecNewCoorsX, VecNewCoorsY, VecNewCoorsZ, fPedHeading, RegisterAsNetworkObject, ScriptHostObject, p7, p8); }
 	FORCEINLINE constexpr void DELETE_PED(Ped* PedIndex) { return YimMenu::NativeInvoker::Invoke<3526, void, false>(PedIndex); }
 	FORCEINLINE constexpr void _SET_REMOVE_PED_NETWORKED(Ped ped, int p1) { return YimMenu::NativeInvoker::Invoke<3527, void, false>(ped, p1); }
@@ -12954,6 +12955,7 @@ namespace STREAMING
 
 namespace TASK
 {
+    extern void TASK_SET_SPRINT(Ped ped, BOOL toggle);
 	FORCEINLINE constexpr void TASK_PAUSE(Ped PedIndex, int Time) { return YimMenu::NativeInvoker::Invoke<5552, void, false>(PedIndex, Time); }
 	FORCEINLINE constexpr void TASK_STAND_STILL(Ped PedIndex, int Time) { return YimMenu::NativeInvoker::Invoke<5553, void, false>(PedIndex, Time); }
 	FORCEINLINE constexpr void TASK_JUMP(Ped PedIndex, BOOL unused) { return YimMenu::NativeInvoker::Invoke<5554, void, false>(PedIndex, unused); }

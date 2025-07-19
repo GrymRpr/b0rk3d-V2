@@ -16,11 +16,17 @@
 #include "submenus/World.hpp"
 #include "submenus/Recovery.hpp"
 
+#include <algorithm>
+#include <Windows.h>
+
 namespace YimMenu
 {
+	static YimMenu::Submenus::Settings g_SettingsInstance;
+
 	void Menu::Init()
 	{
-		// Arguably the only place this file should be edited at for more menus
+		g_SettingsInstance.LoadSettings();
+
 		UIManager::AddSubmenu(std::make_shared<Submenus::Self>());
 		UIManager::AddSubmenu(std::make_shared<Submenus::Teleport>());
 		UIManager::AddSubmenu(std::make_shared<Submenus::Network>());
@@ -31,110 +37,128 @@ namespace YimMenu
 		UIManager::AddSubmenu(std::make_shared<Submenus::Debug>());
 
 		Renderer::AddRendererCallBack(
-		    [&] {
-			    if (!GUI::IsOpen())
-				    return;
+			[&] {
+				if (!GUI::IsOpen())
+					return;
 
-			    ImGui::PushFont(Menu::Font::g_DefaultFont);
-			    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImU32(ImColor(15, 15, 15)));
+				ImGui::PushFont(Menu::Font::g_DefaultFont);
+				ImGui::PushStyleColor(ImGuiCol_WindowBg, ImU32(ImColor(0, 0, 0, 100)));
 
-			    // Think this add HTML&PHP with no CSS. Lol just for testing.
-			    ImGui::SetNextWindowSize(ImVec2((*Pointers.ScreenResX / 2.5), (*Pointers.ScreenResY / 2.5)), ImGuiCond_Once);
-			    if (ImGui::Begin("Terminus", nullptr, ImGuiWindowFlags_NoDecoration))
-			    {
-				    //ImGui::BeginDisabled(*Pointers.IsSessionStarted);
-				    if (ImGui::Button("Unload", ImVec2(120, 0)))
-				    {
-					    if (ScriptMgr::CanTick())
-					    {
-						    FiberPool::Push([] {
-							    Commands::Shutdown();
-							    g_Running = false;
-						    });
-					    }
-					    else
-					    {
-						    g_Running = false;
-					    }
-				    }
-				    //ImGui::EndDisabled();
+				// --- Window Position/Size Persistence BEGIN ---
+				static bool firstFrame = true;
+				// Use settings values as initial
+				static int lastPosX = g_SettingsInstance.GetWindowPosX();
+				static int lastPosY = g_SettingsInstance.GetWindowPosY();
+				static int lastWidth = g_SettingsInstance.GetWindowWidth();
+				static int lastHeight = g_SettingsInstance.GetWindowHeight();
+				static bool lastMaximized = g_SettingsInstance.IsWindowMaximized();
 
-				    UIManager::Draw();
+				int screenW = GetSystemMetrics(SM_CXSCREEN);
+				int screenH = GetSystemMetrics(SM_CYSCREEN);
+				const int minW = 300, minH = 200, maxW = screenW, maxH = screenH;
+				int posX = std::clamp(g_SettingsInstance.GetWindowPosX(), 0, screenW - minW);
+				int posY = std::clamp(g_SettingsInstance.GetWindowPosY(), 0, screenH - minH);
+				int width = std::clamp(g_SettingsInstance.GetWindowWidth(), minW, maxW);
+				int height = std::clamp(g_SettingsInstance.GetWindowHeight(), minH, maxH);
 
-				    ImGui::End();
-			    }
+				if (firstFrame) {
+					ImGui::SetNextWindowPos(ImVec2((float)posX, (float)posY), ImGuiCond_Once);
+					ImGui::SetNextWindowSize(ImVec2((float)width, (float)height), ImGuiCond_Once);
+				}
 
-			    ImGui::PopStyleColor();
-			    ImGui::PopFont();
-		    },
-		    -1);
+				if (ImGui::Begin("##Terminus", nullptr,
+					ImGuiWindowFlags_NoTitleBar |
+					ImGuiWindowFlags_NoCollapse |
+					ImGuiWindowFlags_AlwaysUseWindowPadding |
+					ImGuiWindowFlags_NoSavedSettings))
+				{
+					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.0f, 1.0f)); // Yellow fake title
+					ImGui::Text("Terminus: b0rk3d V2");
+					ImGui::PopStyleColor(); // Pop yellow title text color
+
+					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0.50f, 1.0f));
+					if (ImGui::Button("Terminate", ImVec2(80, 0)))
+					{
+						if (ScriptMgr::CanTick())
+						{
+							FiberPool::Push([] {
+								Commands::Shutdown();
+								g_Running = false;
+							});
+						}
+						else
+						{
+							g_Running = false;
+						}
+					}
+					ImGui::PopStyleColor();
+
+					UIManager::Draw();
+
+					ImVec2 winPos = ImGui::GetWindowPos();
+					ImVec2 winSize = ImGui::GetWindowSize();
+					bool maximized = false; // ImGui does not natively support "maximized" for normal windows
+
+					int curPosX = (int)winPos.x;
+					int curPosY = (int)winPos.y;
+					int curWidth = (int)winSize.x;
+					int curHeight = (int)winSize.y;
+
+					if (firstFrame ||
+						curPosX != lastPosX || curPosY != lastPosY ||
+						curWidth != lastWidth || curHeight != lastHeight ||
+						maximized != lastMaximized)
+					{
+						g_SettingsInstance.SaveIfWindowChanged(curWidth, curHeight, curPosX, curPosY, maximized);
+						lastPosX = curPosX;
+						lastPosY = curPosY;
+						lastWidth = curWidth;
+						lastHeight = curHeight;
+						lastMaximized = maximized;
+					}
+					firstFrame = false;
+					// --- END ---
+
+					ImGui::End();
+				}
+
+				ImGui::PopStyleColor();
+				ImGui::PopFont();
+			},
+			-1);
 	}
 
 	void Menu::SetupStyle()
 	{
-		ImGuiStyle& style                            = ImGui::GetStyle();
-		style.Colors[ImGuiCol_Text]                  = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-		style.Colors[ImGuiCol_TextDisabled]          = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
-		style.Colors[ImGuiCol_WindowBg]              = ImVec4(0.13f, 0.14f, 0.15f, 1.00f);
-		style.Colors[ImGuiCol_ChildBg]               = ImVec4(0.13f, 0.14f, 0.15f, 1.00f);
-		style.Colors[ImGuiCol_PopupBg]               = ImVec4(0.13f, 0.14f, 0.15f, 1.00f);
-		style.Colors[ImGuiCol_Border]                = ImVec4(0.43f, 0.43f, 0.50f, 0.50f);
-		style.Colors[ImGuiCol_BorderShadow]          = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-		style.Colors[ImGuiCol_FrameBg]               = ImVec4(0.25f, 0.25f, 0.25f, 1.00f);
-		style.Colors[ImGuiCol_FrameBgHovered]        = ImVec4(0.38f, 0.38f, 0.38f, 1.00f);
-		style.Colors[ImGuiCol_FrameBgActive]         = ImVec4(0.67f, 0.67f, 0.67f, 0.39f);
-		style.Colors[ImGuiCol_TitleBg]               = ImVec4(0.08f, 0.08f, 0.09f, 1.00f);
-		style.Colors[ImGuiCol_TitleBgActive]         = ImVec4(0.08f, 0.08f, 0.09f, 1.00f);
-		style.Colors[ImGuiCol_TitleBgCollapsed]      = ImVec4(0.00f, 0.00f, 0.00f, 0.51f);
-		style.Colors[ImGuiCol_MenuBarBg]             = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
-		style.Colors[ImGuiCol_ScrollbarBg]           = ImVec4(0.02f, 0.02f, 0.02f, 0.53f);
-		style.Colors[ImGuiCol_ScrollbarGrab]         = ImVec4(0.31f, 0.31f, 0.31f, 1.00f);
-		style.Colors[ImGuiCol_ScrollbarGrabHovered]  = ImVec4(0.41f, 0.41f, 0.41f, 1.00f);
-		style.Colors[ImGuiCol_ScrollbarGrabActive]   = ImVec4(0.51f, 0.51f, 0.51f, 1.00f);
-		style.Colors[ImGuiCol_CheckMark]             = ImVec4(0.11f, 0.64f, 0.92f, 1.00f);
-		style.Colors[ImGuiCol_SliderGrab]            = ImVec4(0.11f, 0.64f, 0.92f, 1.00f);
-		style.Colors[ImGuiCol_SliderGrabActive]      = ImVec4(0.08f, 0.50f, 0.72f, 1.00f);
-		style.Colors[ImGuiCol_Button]                = ImVec4(0.25f, 0.25f, 0.25f, 1.00f);
-		style.Colors[ImGuiCol_ButtonHovered]         = ImVec4(0.38f, 0.38f, 0.38f, 1.00f);
-		style.Colors[ImGuiCol_ButtonActive]          = ImVec4(0.67f, 0.67f, 0.67f, 0.39f);
-		style.Colors[ImGuiCol_Header]                = ImVec4(0.22f, 0.22f, 0.22f, 1.00f);
-		style.Colors[ImGuiCol_HeaderHovered]         = ImVec4(0.25f, 0.25f, 0.25f, 1.00f);
-		style.Colors[ImGuiCol_HeaderActive]          = ImVec4(0.67f, 0.67f, 0.67f, 0.39f);
-		style.Colors[ImGuiCol_Separator]             = style.Colors[ImGuiCol_Border];
-		style.Colors[ImGuiCol_SeparatorHovered]      = ImVec4(0.41f, 0.42f, 0.44f, 1.00f);
-		style.Colors[ImGuiCol_SeparatorActive]       = ImVec4(0.26f, 0.59f, 0.98f, 0.95f);
-		style.Colors[ImGuiCol_ResizeGrip]            = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-		style.Colors[ImGuiCol_ResizeGripHovered]     = ImVec4(0.29f, 0.30f, 0.31f, 0.67f);
-		style.Colors[ImGuiCol_ResizeGripActive]      = ImVec4(0.26f, 0.59f, 0.98f, 0.95f);
-		style.Colors[ImGuiCol_Tab]                   = ImVec4(0.08f, 0.08f, 0.09f, 0.83f);
-		style.Colors[ImGuiCol_TabHovered]            = ImVec4(0.33f, 0.34f, 0.36f, 0.83f);
-		style.Colors[ImGuiCol_TabActive]             = ImVec4(0.23f, 0.23f, 0.24f, 1.00f);
-		style.Colors[ImGuiCol_TabUnfocused]          = ImVec4(0.08f, 0.08f, 0.09f, 1.00f);
-		style.Colors[ImGuiCol_TabUnfocusedActive]    = ImVec4(0.13f, 0.14f, 0.15f, 1.00f);
-		style.Colors[ImGuiCol_PlotLines]             = ImVec4(0.61f, 0.61f, 0.61f, 1.00f);
-		style.Colors[ImGuiCol_PlotLinesHovered]      = ImVec4(1.00f, 0.43f, 0.35f, 1.00f);
-		style.Colors[ImGuiCol_PlotHistogram]         = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
-		style.Colors[ImGuiCol_PlotHistogramHovered]  = ImVec4(1.00f, 0.60f, 0.00f, 1.00f);
-		style.Colors[ImGuiCol_TextSelectedBg]        = ImVec4(0.26f, 0.59f, 0.98f, 0.35f);
-		style.Colors[ImGuiCol_DragDropTarget]        = ImVec4(0.11f, 0.64f, 0.92f, 1.00f);
-		style.Colors[ImGuiCol_NavHighlight]          = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
-		style.Colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
-		style.Colors[ImGuiCol_NavWindowingDimBg]     = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
-		style.Colors[ImGuiCol_ModalWindowDimBg]      = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
-		style.GrabRounding = style.FrameRounding = style.ChildRounding = style.WindowRounding = 2.3f;
+		ImGuiStyle& style = ImGui::GetStyle();
+
+		style.FramePadding = ImVec2(style.FramePadding.x * 0.5f, style.FramePadding.y * 0.4f); // Reduce FramePadding aggressively.
+		style.CellPadding  = ImVec2(style.CellPadding.x * 0.6f, style.CellPadding.y * 0.2f); // Reduce CellPadding aggressively.
+		style.ItemSpacing  = ImVec2(style.ItemSpacing.x * 0.5f, style.ItemSpacing.y * 0.3f); // Reduced vertical ItemSpacing aggressively - Reduce vertical ItemSpacing aggressively
+		style.ItemInnerSpacing = ImVec2(style.ItemInnerSpacing.x * 0.5f, style.ItemInnerSpacing.y * 0.5f); // Reduce ItemInnerSpacing aggressively.
+		style.WindowPadding    = ImVec2(style.WindowPadding.x * 0.5f, style.WindowPadding.y * 0.4f); // Reduced vertical WindowPadding aggressively - Reduced vertical WindowPadding aggressively
+
+		YimMenu::Submenus::ApplyMenuColors();
+
+		style.GrabRounding = style.FrameRounding = style.ChildRounding = style.WindowRounding = 6.0f; // Apply rounding of 6.0f
 	}
 
 	void Menu::SetupFonts()
 	{
-		auto& IO = ImGui::GetIO();
+		auto& IO       = ImGui::GetIO();
+		auto file_path = std::filesystem::path(std::getenv("appdata")) / "Terminus-b0rk3d" / "imgui.ini";
+		static auto path = file_path.string();
+		IO.IniFilename   = path.c_str();
+		IO.LogFilename   = NULL;
 		ImFontConfig FontCfg{};
 		FontCfg.FontDataOwnedByAtlas = false;
 
-		Menu::Font::g_DefaultFont = IO.Fonts->AddFontFromMemoryTTF(const_cast<std::uint8_t*>(Fonts::MainFont), sizeof(Fonts::MainFont), Menu::Font::g_DefaultFontSize, &FontCfg);
-		Menu::Font::g_OptionsFont = IO.Fonts->AddFontFromMemoryTTF(const_cast<std::uint8_t*>(Fonts::MainFont), sizeof(Fonts::MainFont), Menu::Font::g_OptionsFontSize, &FontCfg);
-		Menu::Font::g_ChildTitleFont = IO.Fonts->AddFontFromMemoryTTF(const_cast<std::uint8_t*>(Fonts::MainFont), sizeof(Fonts::MainFont), Menu::Font::g_ChildTitleFontSize, &FontCfg);
-		Menu::Font::g_ChatFont = IO.Fonts->AddFontFromMemoryTTF(const_cast<std::uint8_t*>(Fonts::MainFont), sizeof(Fonts::MainFont), Menu::Font::g_ChatFontSize, &FontCfg);
-		Menu::Font::g_OverlayFont = IO.Fonts->AddFontFromMemoryTTF(const_cast<std::uint8_t*>(Fonts::MainFont), sizeof(Fonts::MainFont), Menu::Font::g_OverlayFontSize, &FontCfg);
+		Menu::Font::g_DefaultFont = IO.Fonts->AddFontFromMemoryTTF(const_cast<std::uint8_t*>(Fonts::MainFont), sizeof(Fonts::MainFont), 16.5f, &FontCfg); // Reduced Default Font Size slightly from 16.7f - MINIMAL FONT SIZE
+		Menu::Font::g_OptionsFont = IO.Fonts->AddFontFromMemoryTTF(const_cast<std::uint8_t*>(Fonts::MainFont), sizeof(Fonts::MainFont), 16.5f, &FontCfg); // Reduced Options Font Size slightly from 16.7f - MINIMAL FONT SIZE
+		Menu::Font::g_ChildTitleFont = IO.Fonts->AddFontFromMemoryTTF(const_cast<std::uint8_t*>(Fonts::MainFont), sizeof(Fonts::MainFont), 16.5f, &FontCfg); // Reduced Child Title Font Size slightly from 16.7f - MINIMAL FONT SIZE
+		Menu::Font::g_ChatFont    = IO.Fonts->AddFontFromMemoryTTF(const_cast<std::uint8_t*>(Fonts::MainFont), sizeof(Fonts::MainFont), 16.5f, &FontCfg);     // Reduced Chat Font Size slightly from 16.7f - MINIMAL FONT SIZE
+		Menu::Font::g_OverlayFont = IO.Fonts->AddFontFromMemoryTTF(const_cast<std::uint8_t*>(Fonts::MainFont), sizeof(Fonts::MainFont), 16.5f, &FontCfg);   // Reduced Overlay Font Size slightly from 16.7f - MINIMAL FONT SIZE
+
 		UIManager::SetOptionsFont(Menu::Font::g_OptionsFont);
 	}
 }

@@ -41,7 +41,7 @@ namespace YimMenu::Submenus
 		debug->AddItem(std::make_shared<BoolCommandItem>("logpresenceevents"_J));
 		debug->AddItem(std::make_shared<BoolCommandItem>("logpostmessage"_J));
 		debug->AddItem(std::make_shared<BoolCommandItem>("logservermessages"_J));
-		//debug->AddItem(std::make_shared<BoolCommandItem>("logscriptlaunches"_J));
+		debug->AddItem(std::make_shared<BoolCommandItem>("logscriptlaunches"_J));
 
 		debug->AddItem(std::make_shared<BoolCommandItem>("betterentitycheck"_J));
 		debug->AddItem(std::make_shared<CommandItem>("chathelper"_J));
@@ -60,22 +60,6 @@ namespace YimMenu::Submenus
 			{
 				FiberPool::Push([] {
 					Object::Create(Joaat(object_model), Self::GetPed().GetPosition());
-				});
-			}
-			static char music_event[255]{};
-			ImGui::InputText("Music", music_event, sizeof(music_event));
-			if (ImGui::Button("Play"))
-			{
-				FiberPool::Push([] {
-					AUDIO::PREPARE_MUSIC_EVENT(music_event);
-					AUDIO::TRIGGER_MUSIC_EVENT(music_event);
-				});
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("Stop"))
-			{
-				FiberPool::Push([] {
-					AUDIO::TRIGGER_MUSIC_EVENT("MC_MUSIC_STOP");
 				});
 			}
 			static int mflag = 0;

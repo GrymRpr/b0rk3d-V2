@@ -3,6 +3,8 @@
 #include "ESP.hpp"
 #include "ContextMenu.hpp"
 #include "Overlay.hpp"
+#include "core/commands/Commands.hpp" // Required to access the command system
+#include "core/commands/BoolCommand.hpp" // Required to use BoolCommand
 #include "core/renderer/Renderer.hpp"
 #include "core/frontend/Notifications.hpp"
 #include "game/frontend/ChatDisplay.hpp"
@@ -61,7 +63,13 @@ namespace YimMenu
 
 	void GUI::WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 	{
-		if (msg == WM_KEYUP && wparam == VK_INSERT)
+        // THIS IS THE FIX: The logic is now inverted to match your request.
+        // Get the state of the toggle command.
+        const auto use_insert_key = Commands::GetCommand<BoolCommand>("togglemenukey"_J)->GetState();
+        // If ticked (true), use Insert. If unticked (false), use F5.
+        const auto key_to_check = use_insert_key ? VK_INSERT : VK_F5;
+
+		if (msg == WM_KEYUP && wparam == key_to_check)
 		{
 			// Persist and restore the cursor position between menu instances
 			static POINT CursorCoords{};

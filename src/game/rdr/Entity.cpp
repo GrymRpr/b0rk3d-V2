@@ -1,7 +1,7 @@
-#include "Entity.hpp"
+#include "game/rdr/Entity.hpp"
 
-#include "Natives.hpp"
-#include "Network.hpp"
+#include "game/rdr/Natives.hpp"
+#include "game/rdr/Network.hpp"
 #include "game/pointers/Pointers.hpp"
 #include "util/Joaat.hpp"
 
@@ -171,6 +171,29 @@ namespace YimMenu
 		ENTITY_ASSERT_CONTROL();
 		ENTITY::FREEZE_ENTITY_POSITION(GetHandle(), enabled);
 	}
+
+	void Entity::SetScale(float scale)
+	{
+		ENTITY_ASSERT_VALID();
+		ENTITY_ASSERT_CONTROL();
+                if (IsPed())
+                {
+                  PED::_SET_PED_SCALE(GetHandle(), scale);  
+		  PED::_UPDATE_PED_VARIATION(GetHandle(), 0, 1, 1, 1, 0);
+	        } 
+                else if (IsVehicle())
+                {
+                  LOG(WARNING) << "SetScale() not supported for vehicles in RDR2";
+                }
+                else if (IsObject())
+                {
+                  LOG(WARNING) << "SetScale() not supported for objects in RDR2";
+                }
+                else
+                {
+                  LOG(WARNING) << "SetScale() not supported for this entity type in RDR2";
+                }
+        }       
 
 	void Entity::Delete()
 	{

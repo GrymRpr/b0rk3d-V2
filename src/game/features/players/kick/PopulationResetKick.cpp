@@ -7,28 +7,35 @@
 #include <script/scrThread.hpp>
 #include <network/CNetworkScSessionPlayer.hpp>
 #include <network/CNetworkScSession.hpp>
+#include <chrono>
+#include <thread>
 
 namespace YimMenu::Features
 {
-	class PopulationResetKick : public PlayerCommand
-	{
-		using PlayerCommand::PlayerCommand;
+    class PopulationResetKick : public PlayerCommand
+    {
+        using PlayerCommand::PlayerCommand;
 
-		virtual void OnCall(Player player) override
-		{
-			if ((*Pointers.ScSession)->m_SessionMultiplayer->GetPlayerByIndex(player.GetId())->m_SessionPeer->m_IsHost)
-			{
-				Notifications::Show("Kick", "Cannot use this against the host", NotificationType::Error);
-				return;
-			}
+        virtual void OnCall(Player player) override
+        {
+            if ((*Pointers.ScSession)->m_SessionMultiplayer->GetPlayerByIndex(player.GetId())->m_SessionPeer->m_IsHost)
+            {
+                Notifications::Show("Kick", "Cannot use this against the host", NotificationType::Error);
+                return;
+            }
 
-			Packet sync;
-			sync.WriteMessageHeader(NetMessageType::RESET_POPULATION);
-			sync.GetBuffer().Write<bool>(false, 1);
-			sync.GetBuffer().Write<bool>(false, 1);
-			sync.Send(player, 13, true, true);
-		}
-	};
+            for (int i = 0; i < 5; i++) // Send the packet 5 times
+            {
+                Packet sync;
+                sync.WriteMessageHeader(NetMessageType::RESET_POPULATION);
+                sync.GetBuffer().Write<bool>(false, 1);
+                sync.GetBuffer().Write<bool>(false, 1);
+                sync.Send(player, 13, true, true);
 
-	static PopulationResetKick _PopulationResetKick{"popkick", "Population Reset Kick", "Kicks the player from the session by making them spam complaints to the server. Note that the player would simply be desynced, not booted to the landing page. Does not work against the host", 0, false};
+                std::this_thread::sleep_for(std::chrono::milliseconds(100 + (rand() % 400)));
+            }
+        }
+    };
+
+    static PopulationResetKick _PopulationResetKick{"popkick", "Population Reset Kick", "Kicks the player from the session by making them spam complaints to the server. Note that the player would simply be desynced, not booted to the landing page. Does not work against the host", 0, false};
 }

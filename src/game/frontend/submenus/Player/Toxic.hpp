@@ -4,5 +4,6 @@
 
 namespace YimMenu::Submenus
 {
+	// No changes needed in the header file
 	std::shared_ptr<Category> BuildToxicMenu();
 }

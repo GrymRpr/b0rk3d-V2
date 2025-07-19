@@ -6,7 +6,7 @@ namespace YimMenu
 	using json = nlohmann::json;
 
 	PlayerDatabase::PlayerDatabase() :
-	    m_File(std::filesystem::path(std::getenv("appdata")) / "HorseMenu" / "database.json")
+	    m_File(std::filesystem::path(std::getenv("appdata")) / "Terminus-b0rk3d" / "database.json")
 	{
 		Load();
 

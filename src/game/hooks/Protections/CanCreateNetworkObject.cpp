@@ -17,22 +17,30 @@ namespace YimMenu::Features
 namespace YimMenu::Hooks
 {
 	static void DeleteAmbientObjects(rage::fwBasePool* pool, int to_delete)
-	{ 
+	{
+		// Temporary container for ambient objects to be deleted.
+		std::vector<decltype(*PoolUtils(pool).begin())> objectsToDelete;
 		for (auto entity : PoolUtils(pool))
 		{
 			if (entity.IsNetworked() && !entity.IsPlayer() && !entity.IsMissionEntity())
 			{
-				entity.Delete();
-				to_delete--;
+				objectsToDelete.push_back(entity);
+				if ((int)objectsToDelete.size() >= to_delete)
+					break;
 			}
-
-			if (to_delete == 0)
-				break;
+		}
+		// Now delete the collected objects.
+		for (auto entity : objectsToDelete)
+		{
+			entity.Delete();
 		}
 	}
 
 	bool Protections::CanCreateNetworkObject(NetObjType type, int count, bool mission, bool a4, bool a5)
 	{
+		using OriginalFnType = decltype(&Protections::CanCreateNetworkObject);
+		OriginalFnType originalFn = BaseHook::Get<Protections::CanCreateNetworkObject, DetourHook<OriginalFnType>>()->Original();
+
 		if (Features::_BetterEntityCheck.GetState())
 		{
 			bool is_ped = type == NetObjType::Ped || type == NetObjType::Horse || type == NetObjType::Animal;
@@ -50,10 +58,10 @@ namespace YimMenu::Hooks
 
 			if (pool)
 			{
-				auto can_create_object = BaseHook::Get<Protections::CanCreateNetworkObject, DetourHook<decltype(&Protections::CanCreateNetworkObject)>>()->Original()(type, count, mission, a4, a5) && pool->GetNumFreeSlots() >= count;
+				bool can_create_object = originalFn(type, count, mission, a4, a5) && pool->GetNumFreeSlots() >= count;
 
 				if (can_create_object)
-					return true; 
+					return true;
 
 				// our pools are full
 
@@ -64,9 +72,9 @@ namespace YimMenu::Hooks
 
 				// try deleting some objects
 				DeleteAmbientObjects(pool, count);
-				
+
 				// recalculate
-				can_create_object = BaseHook::Get<Protections::CanCreateNetworkObject, DetourHook<decltype(&Protections::CanCreateNetworkObject)>>()->Original()(type, count, mission, a4, a5) && pool->GetNumFreeSlots() >= count;
+				can_create_object = originalFn(type, count, mission, a4, a5) && pool->GetNumFreeSlots() >= count;
 
 				if (!can_create_object)
 				{
@@ -76,7 +84,7 @@ namespace YimMenu::Hooks
 			}
 		}
 
-		if (!BaseHook::Get<Protections::CanCreateNetworkObject, DetourHook<decltype(&Protections::CanCreateNetworkObject)>>()->Original()(type, count, mission, a4, a5))
+		if (!originalFn(type, count, mission, a4, a5))
 			return false;
 
 		return true;

@@ -5,22 +5,33 @@
 
 namespace YimMenu::Features
 {
-	class HorseSuperRun : public LoopedCommand
-	{
-		using LoopedCommand::LoopedCommand;
+    class HorseSuperRun : public LoopedCommand
+    {
+        using LoopedCommand::LoopedCommand;
 
-		virtual void OnTick() override
-		{
-			if (Self::GetMount())
-			{
-				if (Self::GetMount().GetRagdoll())
-					return;
+        virtual void OnTick() override
+        {
+            if (Self::GetMount())
+            {
+                if (Self::GetMount().GetRagdoll())
+                    return;
 
-				if (TASK::IS_PED_RUNNING(Self::GetMount().GetHandle()) || TASK::IS_PED_SPRINTING(Self::GetMount().GetHandle()))
-					ENTITY::APPLY_FORCE_TO_ENTITY(Self::GetMount().GetHandle(), 1, 0.0f, 20.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1, 1, 1, TRUE, FALSE, TRUE);
-			}
-		}
-	};
+                if (TASK::IS_PED_RUNNING(Self::GetMount().GetHandle()) || TASK::IS_PED_SPRINTING(Self::GetMount().GetHandle()))
+                {
+                    // Apply forward force only (no vertical component)
+                    ENTITY::APPLY_FORCE_TO_ENTITY(Self::GetMount().GetHandle(), 1, 0.0f, 30.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1, 1, 1, TRUE, FALSE, TRUE);
+                    
+                    // Moderate speed multiplier for better control
+                    PED::SET_PED_MOVE_RATE_OVERRIDE(Self::GetMount().GetHandle(), 2.0f);
+                }
+                else
+                {
+                    // Reset to normal speed
+                    PED::SET_PED_MOVE_RATE_OVERRIDE(Self::GetMount().GetHandle(), 1.0f);
+                }
+            }
+        }
+    };
 
-	static HorseSuperRun _HorseSuperRun{"horsesuperrun", "Super Run", "Your horse will faster than normal"};
+    static HorseSuperRun _HorseSuperRun{"horsesuperrun", "Super Run", "Provides a smooth speed boost to your horse when running"};
 }

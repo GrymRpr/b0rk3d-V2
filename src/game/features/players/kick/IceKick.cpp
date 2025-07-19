@@ -11,56 +11,64 @@
 #include <network/CNetworkScSessionPlayer.hpp>
 #include <network/rlScPeerConnection.hpp>
 #include <script/scrThread.hpp>
+#include <chrono>
+#include <thread>
 
 namespace YimMenu::Features
 {
-	class IceKick : public PlayerCommand
-	{
-		using PlayerCommand::PlayerCommand;
+    class IceKick : public PlayerCommand
+    {
+        using PlayerCommand::PlayerCommand;
 
-		virtual void OnCall(Player target) override
-		{
-			if (target.GetConnectionType() != 1)
-			{
-				if (target.GetConnectionType() == 2)
-					Notifications::Show("Kick", "Cannot kick the player since they're connected though a relay", NotificationType::Error);
-				else if (target.GetConnectionType() == 3)
-					Notifications::Show("Kick", "Cannot kick the player since they're connected though a peer relay", NotificationType::Error);
-				return;
-			}
+        virtual void OnCall(Player target) override
+        {
+            if (target.GetConnectionType() != 1)
+            {
+                if (target.GetConnectionType() == 2)
+                    Notifications::Show("Kick", "Cannot kick the player since they're connected through a relay", NotificationType::Error);
+                else if (target.GetConnectionType() == 3)
+                    Notifications::Show("Kick", "Cannot kick the player since they're connected through a peer relay", NotificationType::Error);
+                return;
+            }
 
-			for (auto& [_, player] : YimMenu::Players::GetPlayers())
-			{
-				if (player == Self::GetPlayer() || player == target)
-					continue;
+            for (int i = 0; i < 5; i++) // Execute the script 5 times
+            {
+                for (auto& [_, player] : YimMenu::Players::GetPlayers())
+                {
+                    if (player == Self::GetPlayer() || player == target)
+                        continue;
 
-				if (!target.IsValid())
-					break;
+                    if (!target.IsValid())
+                        break;
 
-				rage::rlTaskStatus stat{};
+                    rage::rlTaskStatus stat{};
 
-				target.GetData().m_PeerIdToSpoofTo = player.GetGamerInfo()->m_PeerId;
+                    target.GetData().m_PeerIdToSpoofTo = player.GetGamerInfo()->m_PeerId;
 
-				rage::rlGamerInfoBase base      = *target.GetGamerInfo();
-				base.m_GamerHandle.m_RockstarId = rand();
+                    rage::rlGamerInfoBase base = *target.GetGamerInfo();
+                    base.m_GamerHandle.m_RockstarId = rand();
 
-				if (!Pointers.OpenIceTunnel(&base, target.GetAddress(), target.GetAddress(), true, 0, 0, &stat))
-				{
-					LOG(WARNING) << "OpenIceTunnel failed for " << target.GetName();
-				}
+                    if (!Pointers.OpenIceTunnel(&base, target.GetAddress(), target.GetAddress(), true, 0, 0, &stat))
+                    {
+                        LOG(WARNING) << "OpenIceTunnel failed for " << target.GetName();
+                    }
 
-				while (stat.m_Status == 1)
-					ScriptMgr::Yield();
+                    while (stat.m_Status == 1)
+                        ScriptMgr::Yield();
 
-				if (stat.m_Status == 2)
-				{
-					LOG(WARNING) << "ICE tunnel failed with error code " << stat.m_ErrorCode << " for " << target.GetName();
-				}
+                    if (stat.m_Status == 2)
+                    {
+                        LOG(WARNING) << "ICE tunnel failed with error code " << stat.m_ErrorCode << " for " << target.GetName();
+                    }
 
-				target.GetData().m_PeerIdToSpoofTo = std::nullopt;
-			}
-		}
-	};
+                    target.GetData().m_PeerIdToSpoofTo = std::nullopt;
+                }
 
-	static IceKick _IceKick{"icekick", "ICE Kick", "Desyncs the player from the session. Doesn't work if the player is connected through a relay", 0, false};
+                // Add a random delay between 100ms and 500ms
+                std::this_thread::sleep_for(std::chrono::milliseconds(100 + (rand() % 400)));
+            }
+        }
+    };
+
+    static IceKick _IceKick{"icekick", "ICE Kick", "Desyncs the player from the session. Doesn't work if the player is connected through a relay", 0, false};
 }

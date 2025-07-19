@@ -4,15 +4,18 @@
 
 namespace YimMenu::Features
 {
-	class SuperJump : public LoopedCommand
-	{
-		using LoopedCommand::LoopedCommand;
+    class SuperJump : public LoopedCommand
+    {
+        using LoopedCommand::LoopedCommand;
 
-		virtual void OnTick() override
-		{
-			MISC::SET_SUPER_JUMP_THIS_FRAME(Self::GetPlayer().GetId());
-		}
-	};
+        virtual void OnTick() override
+        {
+            if (Self::GetPlayer().IsValid())
+            {
+                MISC::SET_SUPER_JUMP_THIS_FRAME(Self::GetPlayer().GetId());
+            }
+        }
+    };
 
-	static SuperJump _SuperJump{"superjump", "Super Jump", "Jump higher than normal"};
-}
+    static SuperJump _SuperJump{"superjump", "Super Jump", "Jump higher than normal"};
+} 

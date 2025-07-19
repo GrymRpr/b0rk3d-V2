@@ -1,5 +1,6 @@
 #pragma once
 #include "game/frontend/GUI.hpp"
+#include "game/frontend/submenus/Settings.hpp" 
 
 namespace YimMenu::Menu
 {

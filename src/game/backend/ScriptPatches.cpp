@@ -119,7 +119,7 @@ namespace YimMenu
 	    m_Pattern(pattern),
 	    m_Offset(offset),
 	    m_PatchedBytes(patch),
-	    m_Enabled(false),
+	    m_Enabled(true),
 	    m_Pc(std::nullopt),
 	    m_OriginalBytes({}),
 	    m_Identifier(script, is_mp)
