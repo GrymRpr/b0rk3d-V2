@@ -32,6 +32,9 @@ namespace YimMenu::Submenus {
         plus->AddItem(std::make_shared<PlayerCommandItem>("rideemcowboy"_J, "Rideem Cowboy"));
         plus->AddItem(std::make_shared<PlayerCommandItem>("spankdatass"_J, "Spank Dat Ass"));
 
+        // Insert Poodle Attack button after "Spank Dat Ass"
+        plus->AddItem(std::make_shared<PlayerCommandItem>("poodleattack"_J, "Poodle Attack"));
+
         plus->AddItem(std::make_shared<BoolCommandItem>("indianattack"_J));
         //plus->AddItem(std::make_shared<BoolCommandItem>("zombieslogging"_J));
         plus->AddItem(std::make_shared<BoolCommandItem>("hardmode"_J));

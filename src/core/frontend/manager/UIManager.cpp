@@ -19,7 +19,7 @@ namespace YimMenu
     {
         auto pos = ImGui::GetCursorPos();
 
-        if (ImGui::BeginChild("##submenus", ImVec2(80, ImGui::GetContentRegionAvail().y - 20), true)) // Further reduced width from 90 to 80 - NARROWER COLUMN
+        if (ImGui::BeginChild("##submenus", ImVec2(80, ImGui::GetContentRegionAvail().y - 20), true))
         {
             for (auto& submenu : m_Submenus)
             {

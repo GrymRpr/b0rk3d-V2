@@ -44,6 +44,10 @@ namespace YimMenu::Rewards
 	
 	inline const RewardInfo Eggs[]{{0, "COLLECTIBLE_EGG_VULTURE"_J, ""}, {0, "COLLECTIBLE_EGG_LOON"_J, ""}, {0, "COLLECTIBLE_EGG_DUCK"_J, ""}, {0, "COLLECTIBLE_EGG_GOOSE"_J, ""}, {0, "COLLECTIBLE_EGG_HERON"_J, ""}, {0, "COLLECTIBLE_EGG_EGRET"_J, ""}, {0, "COLLECTIBLE_EGG_EAGLE"_J, ""}, {0, "COLLECTIBLE_EGG_HAWK"_J, ""}, {0, "COLLECTIBLE_EGG_SPOONBILL"_J, ""}, {0, "COLLECTIBLE_EGG_CONDOR"_J, ""}};
 	
+	//inline const RewardInfo Eggs[]{{"mp005_s_bdeg_vulture_egg01x"_J, "COLLECTIBLE_EGG_VULTURE"_J, ""}, {"mp005_s_bdeg_loon_egg01x"_J, "COLLECTIBLE_EGG_LOON"_J, ""}, {"mp005_s_bdeg_duck_egg01x"_J, "COLLECTIBLE_EGG_DUCK"_J, ""}, {"mp005_s_bdeg_goose_egg01x"_J, "COLLECTIBLE_EGG_GOOSE"_J, ""}, {"mp005_s_bdeg_heronnest01x"_J, "COLLECTIBLE_EGG_HERON"_J, ""}, {"mp005_s_bdeg_egret_egg01x"_J, "COLLECTIBLE_EGG_EGRET"_J, ""}, {"mp005_s_bdeg_eaglenest01x"_J, "COLLECTIBLE_EGG_EAGLE"_J, ""}, {"mp005_s_bdeg_hawknest01x"_J, "COLLECTIBLE_EGG_HAWK"_J, ""}, {"mp005_s_bdeg_spoonbillnest01x"_J, "COLLECTIBLE_EGG_SPOONBILL"_J, ""}, {"mp005_s_bdeg_condor_egg01x"_J, "COLLECTIBLE_EGG_CONDOR"_J, ""}};
+	
+	inline const RewardInfo Flowers[]{{0, "HERB_LOOT_AGARITA"_J, ""}, {0, "HERB_LOOT_BITTERWEED"_J, ""}, {0, "HERB_LOOT_BLOOD_FLOWER"_J, ""}, {0, "HERB_LOOT_CARDINAL_FLOWER"_J, ""}, {0, "HERB_LOOT_CHOCOLATE_DAISY"_J, ""}, {0, "HERB_LOOT_CREEK_PLUM"_J, ""}, {0, "HERB_LOOT_BLUE_BONNET"_J, ""}, {0, "HERB_LOOT_RHUBARB"_J, ""}, {0, "HERB_LOOT_WISTERIA"_J, ""}};
+
 	inline const RewardInfo TreasureReward[]{{0, "REWARD_ABANDONED_LOOT_MALE"_J, "Treasure Reward"}};
 
 	inline const RewardInfo CapitaleReward[]{{0, "REWARD_CAPITALE_CHEST_LARGE"_J, "Capitale Reward"}};
@@ -79,6 +83,7 @@ namespace YimMenu::Rewards
 		TAROTCARDS_WANDS,
 		FOSSILS,
 		EGGS,
+		FLOWERS,
 		TREASURE,
 		CAPITALE,
 		XP,
@@ -88,6 +93,7 @@ namespace YimMenu::Rewards
 		NATURALISTXP,
 		BOUNTYHUNTERXP,
 		TRADERGOODS,
+		//TreasureMaps
 	};
 
 	void GiveRequestedRewards(std::vector<eRewardType> rewards);

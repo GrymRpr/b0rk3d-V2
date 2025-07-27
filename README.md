@@ -1,6 +1,6 @@
 ![b0rk3d V2 Banner](https://i.ibb.co/nsYcwJ5S/b0rk3d-V2-banner.png)
 
-# Terminus: b0rk3d V2 *(formerly HorseMenu)*
+# Terminus: b0rk3d V2.1 *(formerly HorseMenu)*
 
 A powerful, community-driven mod menu for **Red Dead Redemption 2** and **Red Dead Online** by Rockstar Games.  
 **Strictly for educational purposes.**  
@@ -34,7 +34,7 @@ the sole tester for V2 So...
 
 | **Area**     | **What’s New in V2**                                                                                          |
 |--------------|---------------------------------------------------------------------------------------------------------------|
-| **GUI**      | Modern theming, theme editor/presets, resizable UI, color editor, placement saving, and menu toggle (F5/INSERT)|
+| **GUI**      | Modern theming, theme editor/presets, resizable UI, color editor, placement saving, & menu toggle (F5/INSERT) |
 | **ESP**      | Modernized and fixed ESP overlay                                                                              |
 | **Self**     | Give all weapons/ammo, searchable animation dictionary, music player improvements                             |
 | **Teleport** | Teleport to Guarma, loading screen/reset toggles                                                              |
@@ -45,6 +45,21 @@ the sole tester for V2 So...
 | **Other**    | AniDict.json / MusicDict.json creation for advanced users                                                     |
 
 ---
+
+##  V 2.1 Update
+
+Fix's: Updated Companion, BodyGuard settings. Minor fix's to the variation logic.
+Reverted RemoteBolas.
+
+**ADDED**
+Perfect Animal/Pelt option.
+Spawn Perfect dead animals (Me/GrymRpr)
+Poodle Fun in Boom Plus! (Me/GrymRpr)
+More Trains, Direction control and the ability to now delete the Trains you spawn. (Me/GrymRpr)
+
+Now GIVE the American Wild Flower Collection to others!
+Thanks to Observed Cat AGAIN for another great addition! This makes #3!
+1: Old DeadEye 2: Helpful/Give others Collectables 3: American Wild Flower collection Added to Helpful/Collectables!
 
 ##  Credits & Scripting Attribution
 

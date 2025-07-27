@@ -2,10 +2,14 @@
 
 #include "core/commands/BoolCommand.hpp"
 #include "core/commands/Commands.hpp"
+#include "core/frontend/Notifications.hpp"
 #include "game/backend/FiberPool.hpp"
 #include "game/frontend/items/Items.hpp"
+#include "game/rdr/data/Stats.hpp"
+#include "game/rdr/Natives.hpp"
 #include "game/rdr/ScriptFunction.hpp"
 #include "game/rdr/Scripts.hpp"
+#include "game/rdr/Stats.hpp"
 #include "util/Rewards.hpp"
 
 namespace YimMenu::Submenus
@@ -40,6 +44,7 @@ namespace YimMenu::Submenus
 				    {Rewards::eRewardType::TAROTCARDS_WANDS, "Tarot Cards - Wands"},
 				    {Rewards::eRewardType::FOSSILS, "Fossils"},
 				    {Rewards::eRewardType::EGGS, "Eggs"},
+				    {Rewards::eRewardType::FLOWERS, "Wild Flower Collection"},
 				    {Rewards::eRewardType::TREASURE, "Treasure Reward"},
 				    {Rewards::eRewardType::CAPITALE, "Capitale"},
 				    {Rewards::eRewardType::XP, "25K XP"},
@@ -116,41 +121,6 @@ namespace YimMenu::Submenus
 							ScriptFunctions::GiveLootTableAward.StaticCall(selectedHerb, 0);
 					});
 				}
-
-				ImGui::Separator();
-				ImGui::Text("Collections:");
-				
-				if (ImGui::Button("Give American Wild Flowers Collection"))
-				{
-					FiberPool::Push([] {
-						if (!Scripts::RequestScript("interactive_campfire"_J))
-							return;
-
-						// List of American Wild Flowers with their JOAAT hashes
-						std::vector<joaat_t> americanWildFlowers = {
-							"HERB_LOOT_AGARITA"_J,           // Agarita
-							"HERB_LOOT_BITTERWEED"_J,        // Bitterweed
-							"HERB_LOOT_BLOOD_FLOWER"_J,      // Blood Flower
-							"HERB_LOOT_CARDINAL_FLOWER"_J,   // Cardinal Flower
-							"HERB_LOOT_CHOCOLATE_DAISY"_J,   // Chocolate Daisy
-							"HERB_LOOT_CREEK_PLUM"_J,        // Creek Plum
-							"HERB_LOOT_BLUE_BONNET"_J,       // Texas Bluebonnet (Blue Bonnet)
-							"HERB_LOOT_RHUBARB"_J,           // Wild Rhubarb (Rhubarb)
-							"HERB_LOOT_WISTERIA"_J           // Wisteria
-						};
-
-						// Give each flower in the collection
-						for (const auto& flower : americanWildFlowers)
-						{
-							ScriptFunctions::GiveLootTableAward.StaticCall(flower, 0);
-						}
-					});
-				}
-				
-				if (ImGui::IsItemHovered())
-				{
-					ImGui::SetTooltip("Spawns all 9 American Wild Flowers:\nAgarita, Bitterweed, Blood Flower,\nCardinal Flower, Chocolate Daisy,\nCreek Plum, Texas Bluebonnet,\nWild Rhubarb, Wisteria");
-				}
 			}
 		}));
 		recoveryOptions->AddItem(std::make_shared<BoolCommandItem>("unlimiteditems"_J));
@@ -160,4 +130,4 @@ namespace YimMenu::Submenus
 
 		AddCategory(std::move(recovery));
 	}
-}  //GrymsArchive
+}

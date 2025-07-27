@@ -119,6 +119,12 @@ namespace YimMenu::Rewards
 					GiveScriptReward(egg);
 				}
 				break;
+			case eRewardType::FLOWERS:
+				for (const auto& flower : Flowers)
+				{
+					GiveScriptReward(flower);
+				}
+				break;
 			case eRewardType::TREASURE:
 				for (const auto& treasure : TreasureReward)
 				{
