@@ -44,9 +44,7 @@ namespace YimMenu
 				ImGui::PushFont(Menu::Font::g_DefaultFont);
 				ImGui::PushStyleColor(ImGuiCol_WindowBg, ImU32(ImColor(0, 0, 0, 100)));
 
-				// --- Window Position/Size Persistence BEGIN ---
 				static bool firstFrame = true;
-				// Use settings values as initial
 				static int lastPosX = g_SettingsInstance.GetWindowPosX();
 				static int lastPosY = g_SettingsInstance.GetWindowPosY();
 				static int lastWidth = g_SettingsInstance.GetWindowWidth();
@@ -72,9 +70,9 @@ namespace YimMenu
 					ImGuiWindowFlags_AlwaysUseWindowPadding |
 					ImGuiWindowFlags_NoSavedSettings))
 				{
-					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.0f, 1.0f)); // Yellow fake title
-					ImGui::Text("Terminus: b0rk3d V2");
-					ImGui::PopStyleColor(); // Pop yellow title text color
+					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.0f, 1.0f));
+					ImGui::Text("Terminus: b0rk3d V2.2");
+					ImGui::PopStyleColor(); 
 
 					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0.50f, 1.0f));
 					if (ImGui::Button("Terminate", ImVec2(80, 0)))
@@ -97,7 +95,7 @@ namespace YimMenu
 
 					ImVec2 winPos = ImGui::GetWindowPos();
 					ImVec2 winSize = ImGui::GetWindowSize();
-					bool maximized = false; // ImGui does not natively support "maximized" for normal windows
+					bool maximized = false; 
 
 					int curPosX = (int)winPos.x;
 					int curPosY = (int)winPos.y;
@@ -117,7 +115,6 @@ namespace YimMenu
 						lastMaximized = maximized;
 					}
 					firstFrame = false;
-					// --- END ---
 
 					ImGui::End();
 				}
@@ -132,15 +129,15 @@ namespace YimMenu
 	{
 		ImGuiStyle& style = ImGui::GetStyle();
 
-		style.FramePadding = ImVec2(style.FramePadding.x * 0.5f, style.FramePadding.y * 0.4f); // Reduce FramePadding aggressively.
-		style.CellPadding  = ImVec2(style.CellPadding.x * 0.6f, style.CellPadding.y * 0.2f); // Reduce CellPadding aggressively.
-		style.ItemSpacing  = ImVec2(style.ItemSpacing.x * 0.5f, style.ItemSpacing.y * 0.3f); // Reduced vertical ItemSpacing aggressively - Reduce vertical ItemSpacing aggressively
-		style.ItemInnerSpacing = ImVec2(style.ItemInnerSpacing.x * 0.5f, style.ItemInnerSpacing.y * 0.5f); // Reduce ItemInnerSpacing aggressively.
-		style.WindowPadding    = ImVec2(style.WindowPadding.x * 0.5f, style.WindowPadding.y * 0.4f); // Reduced vertical WindowPadding aggressively - Reduced vertical WindowPadding aggressively
+		style.FramePadding = ImVec2(style.FramePadding.x * 0.5f, style.FramePadding.y * 0.4f); // Reduce FramePadding
+		style.CellPadding  = ImVec2(style.CellPadding.x * 0.6f, style.CellPadding.y * 0.2f); // Reduce CellPadding
+		style.ItemSpacing  = ImVec2(style.ItemSpacing.x * 0.5f, style.ItemSpacing.y * 0.3f); // Reduced vertical ItemSpacing
+		style.ItemInnerSpacing = ImVec2(style.ItemInnerSpacing.x * 0.5f, style.ItemInnerSpacing.y * 0.5f); // Reduce ItemInnerSpacing
+		style.WindowPadding    = ImVec2(style.WindowPadding.x * 0.5f, style.WindowPadding.y * 0.4f); // Reduced vertical WindowPadding
 
 		YimMenu::Submenus::ApplyMenuColors();
 
-		style.GrabRounding = style.FrameRounding = style.ChildRounding = style.WindowRounding = 6.0f; // Apply rounding of 6.0f
+		style.GrabRounding = style.FrameRounding = style.ChildRounding = style.WindowRounding = 6.0f; // Apply rounding
 	}
 
 	void Menu::SetupFonts()
@@ -153,11 +150,16 @@ namespace YimMenu
 		ImFontConfig FontCfg{};
 		FontCfg.FontDataOwnedByAtlas = false;
 
-		Menu::Font::g_DefaultFont = IO.Fonts->AddFontFromMemoryTTF(const_cast<std::uint8_t*>(Fonts::MainFont), sizeof(Fonts::MainFont), 16.5f, &FontCfg); // Reduced Default Font Size slightly from 16.7f - MINIMAL FONT SIZE
-		Menu::Font::g_OptionsFont = IO.Fonts->AddFontFromMemoryTTF(const_cast<std::uint8_t*>(Fonts::MainFont), sizeof(Fonts::MainFont), 16.5f, &FontCfg); // Reduced Options Font Size slightly from 16.7f - MINIMAL FONT SIZE
-		Menu::Font::g_ChildTitleFont = IO.Fonts->AddFontFromMemoryTTF(const_cast<std::uint8_t*>(Fonts::MainFont), sizeof(Fonts::MainFont), 16.5f, &FontCfg); // Reduced Child Title Font Size slightly from 16.7f - MINIMAL FONT SIZE
-		Menu::Font::g_ChatFont    = IO.Fonts->AddFontFromMemoryTTF(const_cast<std::uint8_t*>(Fonts::MainFont), sizeof(Fonts::MainFont), 16.5f, &FontCfg);     // Reduced Chat Font Size slightly from 16.7f - MINIMAL FONT SIZE
-		Menu::Font::g_OverlayFont = IO.Fonts->AddFontFromMemoryTTF(const_cast<std::uint8_t*>(Fonts::MainFont), sizeof(Fonts::MainFont), 16.5f, &FontCfg);   // Reduced Overlay Font Size slightly from 16.7f - MINIMAL FONT SIZE
+		Menu::Font::g_DefaultFont = IO.Fonts->AddFontFromMemoryTTF(
+			const_cast<std::uint8_t*>(Fonts::MainFont), sizeof(Fonts::MainFont), 19.0f, &FontCfg);
+		Menu::Font::g_OptionsFont = IO.Fonts->AddFontFromMemoryTTF(
+			const_cast<std::uint8_t*>(Fonts::MainFont), sizeof(Fonts::MainFont), 19.0f, &FontCfg);
+		Menu::Font::g_ChildTitleFont = IO.Fonts->AddFontFromMemoryTTF(
+			const_cast<std::uint8_t*>(Fonts::MainFont), sizeof(Fonts::MainFont), 19.0f, &FontCfg);
+		Menu::Font::g_ChatFont = IO.Fonts->AddFontFromMemoryTTF(
+			const_cast<std::uint8_t*>(Fonts::MainFont), sizeof(Fonts::MainFont), 22.0f, &FontCfg);
+		Menu::Font::g_OverlayFont = IO.Fonts->AddFontFromMemoryTTF(
+			const_cast<std::uint8_t*>(Fonts::MainFont), sizeof(Fonts::MainFont), 16.0f, &FontCfg);
 
 		UIManager::SetOptionsFont(Menu::Font::g_OptionsFont);
 	}

@@ -1,4 +1,5 @@
 #include "UIManager.hpp"
+#include "game/frontend/Menu.hpp" // Include the Menu header for font access
 
 namespace YimMenu
 {
@@ -19,7 +20,7 @@ namespace YimMenu
     {
         auto pos = ImGui::GetCursorPos();
 
-        if (ImGui::BeginChild("##submenus", ImVec2(80, ImGui::GetContentRegionAvail().y - 20), true)) // Further reduced width from 90 to 80 - NARROWER COLUMN
+        if (ImGui::BeginChild("##submenus", ImVec2(80, ImGui::GetContentRegionAvail().y - 20), true))
         {
             for (auto& submenu : m_Submenus)
             {
@@ -31,9 +32,12 @@ namespace YimMenu
         }
         ImGui::EndChild();
 
+        // Adjustable font for "Grym" & "Works"
+        if (Menu::Font::g_OverlayFont) ImGui::PushFont(Menu::Font::g_OverlayFont);
         ImGui::TextColored(ImVec4(0.0f, 0.75f, 1.0f, 1.0f), "Grym"); // Electric Blue (R, G, B, A)
         ImGui::SameLine();
         ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Works"); // Electric Yellow (R, G, B, A)
+        if (Menu::Font::g_OverlayFont) ImGui::PopFont();
 
         pos.y -= 20; // Reduced upward offset from 20 to 20 (no change, already reduced)
         ImGui::SetCursorPos(ImVec2(pos.x + 125 - 45, pos.y)); // Shifted X for "minisubmenus" LEFT by 45 pixels (increased from 35) - FURTHER LEFT SHIFT

@@ -1,4 +1,4 @@
-﻿#include "Network.hpp"
+#include "Network.hpp"
 
 #include "Network/Voice.hpp"
 #include "core/commands/Commands.hpp"

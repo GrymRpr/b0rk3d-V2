@@ -15,6 +15,7 @@
 #include "util/Rewards.hpp"
 #include "game/backend/AnimationDict.hpp"
 #include "game/backend/MusicDict.hpp"
+#include "game/features/self/ScenarioPlayer.hpp"
 #include <map>
 #include <fstream>
 #include <cstring>
@@ -216,11 +217,13 @@ namespace YimMenu::Submenus
 			if (!dictFilterStr.empty())
 			{
 				std::string filterLower = dictFilterStr;
-				std::transform(filterLower.begin(), filterLower.end(), filterLower.begin(), ::tolower);
+				std::transform(filterLower.begin(), filterLower.end(), filterLower.begin(),
+					[](unsigned char c) { return std::tolower(c); });
 				for (const auto& [dictName, anims] : allDicts)
 				{
 					std::string dictNameLower = dictName;
-					std::transform(dictNameLower.begin(), dictNameLower.end(), dictNameLower.begin(), ::tolower);
+					std::transform(dictNameLower.begin(), dictNameLower.end(), dictNameLower.begin(),
+						[](unsigned char c) { return std::tolower(c); });
 					if (dictNameLower.find(filterLower) != std::string::npos)
 						filteredDicts.push_back(dictName);
 				}
@@ -311,7 +314,6 @@ namespace YimMenu::Submenus
 			anim = animBuf;
 		}
 
-		// Favorites Animations Section - Mark/Unmark/Clear Favorites all on the same line, favorites in dropdown
 		LoadFavoriteAnimations();
 		auto p = std::make_pair(dict, anim);
 		bool isFav = !dict.empty() && !anim.empty() && favoriteAnimations.count(p) > 0;
@@ -341,7 +343,6 @@ namespace YimMenu::Submenus
 				SaveFavoriteAnimations();
 			}
 		}
-		// Favorites as Dropdown
 		if (!favoriteAnimations.empty())
 		{
 			ImGui::Text("Favorite Animations:");
@@ -412,7 +413,6 @@ namespace YimMenu::Submenus
 
 		ImGui::Spacing();
 
-		// --- PATCHED Animation Playback Controls (OGSelf.cpp logic, Play/Stop on same line) ---
 		if (ImGui::Button("Play Animation"))
 		{
 			auto pair = std::make_pair(dict, anim);
@@ -450,7 +450,10 @@ namespace YimMenu::Submenus
 				TASK::CLEAR_PED_TASKS(YimMenu::Self::GetPed().GetHandle(), true, false);
 			});
 		}
-		// --- END PATCH ---
+
+		ImGui::Separator();
+		//ImGui::Text("Scenario Player");
+		YimMenu::Features::Self::RenderScenarioPlayer();
 
 		ImGui::Separator();
 
@@ -511,21 +514,21 @@ namespace YimMenu::Submenus
 		std::strncpy(musicBuf, music_event.c_str(), sizeof(musicBuf));
 		musicBuf[sizeof(musicBuf) - 1] = '\0';
 
-		// Music Dictionary Filter
 		ImGui::SetNextItemWidth(250.0f);
 		ImGui::InputTextWithHint("##MusicDictFilter", "Filter Music Dictionary", musicDictFilterBuf, sizeof(musicDictFilterBuf));
 		std::string musicDictFilterStr = musicDictFilterBuf;
 
-		// Build filtered music dict
 		std::vector<std::string> filteredMusicDict;
 		if (!musicDictFilterStr.empty())
 		{
 			std::string filterLower = musicDictFilterStr;
-			std::transform(filterLower.begin(), filterLower.end(), filterLower.begin(), ::tolower);
+			std::transform(filterLower.begin(), filterLower.end(), filterLower.begin(),
+				[](unsigned char c) { return std::tolower(c); });
 			for (const auto& entry : musicDict)
 			{
 				std::string entryLower = entry;
-				std::transform(entryLower.begin(), entryLower.end(), entryLower.begin(), ::tolower);
+				std::transform(entryLower.begin(), entryLower.end(), entryLower.begin(),
+					[](unsigned char c) { return std::tolower(c); });
 				if (entryLower.find(filterLower) != std::string::npos)
 					filteredMusicDict.push_back(entry);
 			}
@@ -564,7 +567,6 @@ namespace YimMenu::Submenus
 			musicBuf[sizeof(musicBuf) - 1] = '\0';
 		}
 
-		// --- Play Section ---
 		ImGui::Text("Play");
 		ImGui::Checkbox("Loop Music", &loopMusic);
 		if (!isMusicLooping && loopMusic && !music_event.empty())
@@ -608,7 +610,6 @@ namespace YimMenu::Submenus
 			});
 		}
 
-		// --- Favorite Section ---
 		LoadFavoriteMusics();
 		bool musicIsFav = !music_event.empty() && favoriteMusics.count(music_event) > 0;
 		if (!music_event.empty())
@@ -628,7 +629,6 @@ namespace YimMenu::Submenus
 				{
 					favoriteMusics.erase(music_event);
 					SaveFavoriteMusics();
-					// Also update the file
 					std::ofstream out(GetTerminusRoamingPath("music_favorites.txt"), std::ios::trunc);
 					for (const auto& music : favoriteMusics) out << music << "\n";
 					out.close();
@@ -639,7 +639,6 @@ namespace YimMenu::Submenus
 			{
 				favoriteMusics.clear();
 				SaveFavoriteMusics();
-				// Also clear the file on disk
 				std::ofstream out(GetTerminusRoamingPath("music_favorites.txt"), std::ios::trunc);
 				out.close();
 			}
@@ -668,7 +667,6 @@ namespace YimMenu::Submenus
 					{
 						favoriteMusics.erase(fav);
 						SaveFavoriteMusics();
-						// Also update the file
 						std::ofstream out(GetTerminusRoamingPath("music_favorites.txt"), std::ios::trunc);
 						for (const auto& music : favoriteMusics) out << music << "\n";
 						out.close();
@@ -702,7 +700,6 @@ namespace YimMenu::Submenus
 			{
 				lastPlayedMusics.clear();
 				SaveMusicHistory();
-				// Also clear the file on disk
 				std::ofstream out(GetTerminusRoamingPath("music_history.txt"), std::ios::trunc);
 				out.close();
 			}
@@ -779,20 +776,11 @@ namespace YimMenu::Submenus
 
 		auto weapons = std::make_shared<Category>("Weapons");
 		auto weaponsGlobalsGroup = std::make_shared<Group>("Globals");
-		auto oldDeadeyeGroup = std::make_shared<Group>("Old Deadeye");
 		weaponsGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("infiniteammo"_J));
 		weaponsGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("infiniteclip"_J));
 		weaponsGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("nospread"_J));
 		weaponsGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("autocock"_J));
 		weaponsGlobalsGroup->AddItem(std::make_shared<BoolCommandItem>("keepgunsclean"_J));
-
-		oldDeadeyeGroup->AddItem(std::make_shared<BoolCommandItem>("olddeadeye"_J));
-		oldDeadeyeGroup->AddItem(std::make_shared<ConditionalItem>("olddeadeye"_J, std::make_shared<BoolCommandItem>("deadeyetagging"_J)));
-		oldDeadeyeGroup->AddItem(std::make_shared<ConditionalItem>("olddeadeye"_J, std::make_shared<BoolCommandItem>("unlockdeadeyeabilities"_J)));
-		oldDeadeyeGroup->AddItem(std::make_shared<ConditionalItem>("olddeadeye"_J, std::make_shared<BoolCommandItem>("enhanceddeadeye"_J)));
-		oldDeadeyeGroup->AddItem(std::make_shared<ConditionalItem>("olddeadeye"_J, std::make_shared<BoolCommandItem>("slowdeadeyedrain"_J)));
-		oldDeadeyeGroup->AddItem(std::make_shared<ConditionalItem>("olddeadeye"_J, std::make_shared<BoolCommandItem>("slipperybastardaccuracy"_J)));
-		oldDeadeyeGroup->AddItem(std::make_shared<ConditionalItem>("olddeadeye"_J, std::make_shared<BoolCommandItem>("momenttorecuperate"_J)));
 
 		weaponsGlobalsGroup->AddItem(std::make_shared<ImGuiItem>([] {
 			if (ImGui::Button("Give All Weapons"))
@@ -810,7 +798,57 @@ namespace YimMenu::Submenus
 		}));
 
 		weapons->AddItem(weaponsGlobalsGroup);
-		weapons->AddItem(oldDeadeyeGroup);
+
+		weapons->AddItem(std::make_shared<ImGuiItem>([] {
+			ImGui::SeparatorText("Old Deadeye");
+		}));
+		weapons->AddItem(std::make_shared<BoolCommandItem>("olddeadeye"_J));
+		weapons->AddItem(std::make_shared<ConditionalItem>("olddeadeye"_J, std::make_shared<BoolCommandItem>("unlockdeadeyeabilities"_J)));
+		weapons->AddItem(std::make_shared<ConditionalItem>("olddeadeye"_J, std::make_shared<BoolCommandItem>("enhanceddeadeye"_J)));
+		weapons->AddItem(std::make_shared<ConditionalItem>("olddeadeye"_J, std::make_shared<BoolCommandItem>("slowdeadeyedrain"_J)));
+		weapons->AddItem(std::make_shared<ConditionalItem>("olddeadeye"_J, std::make_shared<BoolCommandItem>("slipperybastardaccuracy"_J)));
+		weapons->AddItem(std::make_shared<ConditionalItem>("olddeadeye"_J, std::make_shared<BoolCommandItem>("momenttorecuperate"_J)));
+		weapons->AddItem(std::make_shared<ConditionalItem>("olddeadeye"_J, std::make_shared<BoolCommandItem>("deadeyetagging"_J)));
+		weapons->AddItem(std::make_shared<ConditionalItem>("deadeyetagging"_J, std::make_shared<ImGuiItem>([] {
+			static int current_item_index = 0;
+			const char* items[] = {"Enemies", "Animals", "All"};
+
+			auto command = Commands::GetCommand<IntCommand>("deadeyetaggingconfig"_J);
+			if (!command)
+				return;
+
+			// Note: The IntCommand methods might need to be implemented or accessed differently
+			// For now, we'll use a static variable to track the state
+			static int currentValue = 7; 
+
+			if (currentValue == 6)
+				current_item_index = 0; 
+			else if (currentValue == 8)
+				current_item_index = 1; 
+			else if (currentValue == 7)
+				current_item_index = 2; 
+
+			ImGui::Text("Auto Tag");
+			ImGui::SetNextItemWidth(150.f);
+
+			if (ImGui::Combo("##deadeyetaggingdropdown", &current_item_index, items, IM_ARRAYSIZE(items)))
+			{
+				int newValue = 6; // Default to Enemies
+				if (current_item_index == 0)
+					newValue = 6; // Enemies
+				else if (current_item_index == 1)
+					newValue = 8; // Animals
+				else if (current_item_index == 2)
+					newValue = 7; // All
+
+				currentValue = newValue;
+				// TODO: Set the command value when the proper method is available
+				// FiberPool::Push([=] {
+				//     command->SetValue(newValue);
+				// });
+			}
+		})));
+
 		AddCategory(std::move(weapons));
 
 		auto horse = std::make_shared<Category>("Horse");

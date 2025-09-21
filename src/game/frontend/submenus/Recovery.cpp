@@ -1,15 +1,112 @@
 #include "Recovery.hpp"
-
 #include "core/commands/BoolCommand.hpp"
 #include "core/commands/Commands.hpp"
+#include "core/frontend/Notifications.hpp"
 #include "game/backend/FiberPool.hpp"
 #include "game/frontend/items/Items.hpp"
+#include "game/rdr/data/Stats.hpp"
+#include "game/rdr/Natives.hpp"
 #include "game/rdr/ScriptFunction.hpp"
 #include "game/rdr/Scripts.hpp"
 #include "util/Rewards.hpp"
 
 namespace YimMenu::Submenus
 {
+	bool IsValid(joaat_t BaseId, joaat_t PermutationId)
+	{
+		StatId statid{};
+		statid.BaseId = BaseId;
+		statid.PermutationId = PermutationId;
+		return STATS::STAT_ID_IS_VALID(&statid);
+	}
+
+	void SetInt(joaat_t BaseId, joaat_t PermutationId, int value)
+	{
+		StatId statid{};
+		statid.BaseId = BaseId;
+		statid.PermutationId = PermutationId;
+		STATS::STAT_ID_SET_INT(&statid, value, TRUE);
+	}
+
+	void IncrementInt(joaat_t BaseId, joaat_t PermutationId, int value)
+	{
+		StatId statid{};
+		statid.BaseId = BaseId;
+		statid.PermutationId = PermutationId;
+		STATS::_STAT_ID_INCREMENT_INT(&statid, value);
+	}
+
+	void SetBool(joaat_t BaseId, joaat_t PermutationId, bool value)
+	{
+		StatId statid{};
+		statid.BaseId = BaseId;
+		statid.PermutationId = PermutationId;
+		STATS::STAT_ID_SET_BOOL(&statid, value, TRUE);
+	}
+
+	void SetFloat(joaat_t BaseId, joaat_t PermutationId, float value)
+	{
+		StatId statid{};
+		statid.BaseId = BaseId;
+		statid.PermutationId = PermutationId;
+		STATS::STAT_ID_SET_FLOAT(&statid, value, TRUE);
+	}
+
+	void IncrementFloat(joaat_t BaseId, joaat_t PermutationId, float value)
+	{
+		StatId statid{};
+		statid.BaseId = BaseId;
+		statid.PermutationId = PermutationId;
+		STATS::_STAT_ID_INCREMENT_FLOAT(&statid, value);
+	}
+
+	void SetDate(joaat_t BaseId, joaat_t PermutationId, Date* value)
+	{
+		StatId statid{};
+		statid.BaseId = BaseId;
+		statid.PermutationId = PermutationId;
+		STATS::STAT_ID_SET_DATE(&statid, value, TRUE);
+	}
+
+	int GetInt(joaat_t BaseId, joaat_t PermutationId)
+	{
+		int value{};
+		StatId statid{};
+		statid.BaseId = BaseId;
+		statid.PermutationId = PermutationId;
+		STATS::STAT_ID_GET_INT(&statid, &value);
+		return value;
+	}
+
+	bool GetBool(joaat_t BaseId, joaat_t PermutationId)
+	{
+		BOOL value{};
+		StatId statid{};
+		statid.BaseId = BaseId;
+		statid.PermutationId = PermutationId;
+		STATS::STAT_ID_GET_BOOL(&statid, &value);
+		return value;
+	}
+
+	float GetFloat(joaat_t BaseId, joaat_t PermutationId)
+	{
+		float value{};
+		StatId statid{};
+		statid.BaseId = BaseId;
+		statid.PermutationId = PermutationId;
+		STATS::STAT_ID_GET_FLOAT(&statid, &value);
+		return value;
+	}
+
+	Date GetDate(joaat_t BaseId, joaat_t PermutationId)
+	{
+		Date value{};
+		StatId statid{};
+		statid.BaseId = BaseId;
+		statid.PermutationId = PermutationId;
+		STATS::STAT_ID_GET_DATE(&statid, &value);
+		return value;
+	}
 
 	Recovery::Recovery() :
 	    Submenu::Submenu("Recovery")
@@ -40,6 +137,7 @@ namespace YimMenu::Submenus
 				    {Rewards::eRewardType::TAROTCARDS_WANDS, "Tarot Cards - Wands"},
 				    {Rewards::eRewardType::FOSSILS, "Fossils"},
 				    {Rewards::eRewardType::EGGS, "Eggs"},
+				    {Rewards::eRewardType::FLOWERS, "Wild Flower Collection"},
 				    {Rewards::eRewardType::TREASURE, "Treasure Reward"},
 				    {Rewards::eRewardType::CAPITALE, "Capitale"},
 				    {Rewards::eRewardType::XP, "25K XP"},
@@ -75,6 +173,18 @@ namespace YimMenu::Submenus
 						Rewards::GiveRequestedRewards({selected});
 					});
 				}
+
+				// static char awardBuffer[255]{};
+				// ImGui::InputText("Award Hash", awardBuffer, sizeof(awardBuffer));
+				// ImGui::SameLine();
+				// if (ImGui::Button("Give Award"))
+				// {
+					//FiberPool::Push([] {
+						//if (!Scripts::RequestScript("interactive_campfire"_J))
+							//return;
+						//ScriptFunctions::GiveItemDatabaseAward.StaticCall(Joaat(awardBuffer), false, 255, 0, false);
+					//});
+				//}
 			}
 			else
 			{
@@ -116,41 +226,6 @@ namespace YimMenu::Submenus
 							ScriptFunctions::GiveLootTableAward.StaticCall(selectedHerb, 0);
 					});
 				}
-
-				ImGui::Separator();
-				ImGui::Text("Collections:");
-				
-				if (ImGui::Button("Give American Wild Flowers Collection"))
-				{
-					FiberPool::Push([] {
-						if (!Scripts::RequestScript("interactive_campfire"_J))
-							return;
-
-						// List of American Wild Flowers with their JOAAT hashes
-						std::vector<joaat_t> americanWildFlowers = {
-							"HERB_LOOT_AGARITA"_J,           // Agarita
-							"HERB_LOOT_BITTERWEED"_J,        // Bitterweed
-							"HERB_LOOT_BLOOD_FLOWER"_J,      // Blood Flower
-							"HERB_LOOT_CARDINAL_FLOWER"_J,   // Cardinal Flower
-							"HERB_LOOT_CHOCOLATE_DAISY"_J,   // Chocolate Daisy
-							"HERB_LOOT_CREEK_PLUM"_J,        // Creek Plum
-							"HERB_LOOT_BLUE_BONNET"_J,       // Texas Bluebonnet (Blue Bonnet)
-							"HERB_LOOT_RHUBARB"_J,           // Wild Rhubarb (Rhubarb)
-							"HERB_LOOT_WISTERIA"_J           // Wisteria
-						};
-
-						// Give each flower in the collection
-						for (const auto& flower : americanWildFlowers)
-						{
-							ScriptFunctions::GiveLootTableAward.StaticCall(flower, 0);
-						}
-					});
-				}
-				
-				if (ImGui::IsItemHovered())
-				{
-					ImGui::SetTooltip("Spawns all 9 American Wild Flowers:\nAgarita, Bitterweed, Blood Flower,\nCardinal Flower, Chocolate Daisy,\nCreek Plum, Texas Bluebonnet,\nWild Rhubarb, Wisteria");
-				}
 			}
 		}));
 		recoveryOptions->AddItem(std::make_shared<BoolCommandItem>("unlimiteditems"_J));
@@ -158,6 +233,20 @@ namespace YimMenu::Submenus
 		recovery->AddItem(spawnHerbsGroup);
 		recovery->AddItem(recoveryOptions);
 
+		auto dailiesGroup = std::make_shared<Group>("Dailys");
+		dailiesGroup->AddItem(std::make_shared<ImGuiItem>([=] {
+			if (ImGui::Button("Dailys"))
+			{
+				FiberPool::Push([] {
+					for (auto& stat : Data::int_stats)
+					{
+						IncrementInt(stat.BaseId, stat.PermutationId, stat.desiredValue);
+					}
+				});
+			}
+		}));
+		recovery->AddItem(dailiesGroup);
+
 		AddCategory(std::move(recovery));
 	}
-}  //GrymsArchive
+}

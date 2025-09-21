@@ -1,11 +1,11 @@
 ![b0rk3d V2 Banner](https://i.ibb.co/nsYcwJ5S/b0rk3d-V2-banner.png)
 
-# Terminus: b0rk3d V2 *(formerly HorseMenu)*
+# Terminus: b0rk3d V2.2 *(formerly HorseMenu)*
 
 A powerful, community-driven mod menu for **Red Dead Redemption 2** and **Red Dead Online** by Rockstar Games.  
 **Strictly for educational purposes.**  
 
-Remember: This is based in EARLY BETA Code and may not function as intended. I am pretty much
+Remember: This is based in BETA Code and may not function as intended. I am pretty much
 the sole tester for V2 So...
 
 ---
@@ -34,7 +34,7 @@ the sole tester for V2 So...
 
 | **Area**     | **What’s New in V2**                                                                                          |
 |--------------|---------------------------------------------------------------------------------------------------------------|
-| **GUI**      | Modern theming, theme editor/presets, resizable UI, color editor, placement saving, and menu toggle (F5/INSERT)|
+| **GUI**      | Modern theming, theme editor/presets, resizable UI, color editor, placement saving, & menu toggle (F5/INSERT) |
 | **ESP**      | Modernized and fixed ESP overlay                                                                              |
 | **Self**     | Give all weapons/ammo, searchable animation dictionary, music player improvements                             |
 | **Teleport** | Teleport to Guarma, loading screen/reset toggles                                                              |
@@ -45,6 +45,32 @@ the sole tester for V2 So...
 | **Other**    | AniDict.json / MusicDict.json creation for advanced users                                                     |
 
 ---
+
+##  V 2.2 Update
+
+- **Scenario Player:** Added by *evl wayz*
+- **One Click Dailys:** Added by *GrymRpr/GrymsArchive*
+- **Train Speed:** Added by *GrymRpr/GrymsArchive*
+- **Old DeadEye Target select:** Added by *GrymRpr/GrymsArchive*
+
+---
+
+=======
+##  V 2.1 Update
+
+Fix's: Updated Companion, BodyGuard settings. Minor fix's to the variation logic.
+Reverted RemoteBolas.
+
+**ADDED**
+Perfect Animal/Pelt option.
+Spawn Perfect dead animals (Me/GrymRpr)
+Poodle Fun in Boom Plus! (Me/GrymRpr)
+=======
+More Trains, Direction control and the ability to now delete the Trains you spawn. (Me/GrymRpr)
+
+Now GIVE the American Wild Flower Collection to others!
+Thanks to Observed Cat AGAIN for another great addition! This makes #3!
+1: Old DeadEye 2: Helpful/Give others Collectables 3: American Wild Flower collection Added to Helpful/Collectables!
 
 ##  Credits & Scripting Attribution
 
@@ -61,7 +87,8 @@ the sole tester for V2 So...
     - *World/Spawners:* Ped Spawner overhaul, Legendary presets, Kill'em All, BodyGuard system, save last 20 spawned peds  
     - *Recovery:* Give American Wild Flower collection  
     - *Settings/GUI:* ESP fixes, menu toggle system, menu theming, custom color editor, menu resizing & placement saving  
-    - *Misc:* BAT file and AniDict.json creation
+    - *Misc:* BAT file and AniDict.json creation  
+    - *V2.2 Additions:* One Click Dailys, Train Speed, Old DeadEye Target select
 
 - **PlumbWick3d:**  
     - Provided the custom command-line injector used in the AIO package  
@@ -77,7 +104,8 @@ the sole tester for V2 So...
     - Added the feature to give collectibles to other players (Players/Helpful)
 
 - **evl wayz:**  
-    - Suggested and helped with GUI re-size feature
+    - Suggested and helped with GUI re-size feature  
+    - *V2.2 Addition:* Scenario Player
 
 - **Special Thanks:**  
     - All staff and members of the HorseMenu/Terminus and Wicked Menu Discord communities, for ideas, bug reports, and inspiration!

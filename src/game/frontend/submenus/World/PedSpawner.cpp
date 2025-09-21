@@ -16,6 +16,10 @@
 #include <iostream>
 #include <sstream>
 #include <set>
+#include <cmath>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 namespace YimMenu::Submenus
 {
@@ -80,7 +84,7 @@ namespace YimMenu::Submenus
         LHF_DISABLE_IN_MP = 5
     };
 
-    static void ApplyCompanionSettings(YimMenu::Ped& ped)
+    void ApplyCompanionSettings(YimMenu::Ped& ped)
     {
         static Hash companionGroupHash = 0;
         static bool companionGroupInitialized = false;
@@ -111,11 +115,11 @@ namespace YimMenu::Submenus
         PED::SET_PED_CAN_BE_TARGETTED_BY_PLAYER(ped.GetHandle(), YimMenu::Self::GetPlayer().GetId(), false);
         PED::SET_PED_RELATIONSHIP_GROUP_HASH(ped.GetHandle(), companionGroupHash);
 
-        PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, companionGroupHash, Joaat("PLAYER"));
-        PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, companionGroupHash, Joaat("REL_CIVMALE"));
-        PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, companionGroupHash, Joaat("REL_CRIMINALS"));
-        PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, companionGroupHash, Joaat("REL_GANG"));
-        PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, companionGroupHash, Joaat("REL_COP"));
+        PED::SET_RELATIONSHIP_BETWEEN_GROUPS(1, companionGroupHash, Joaat("PLAYER"));
+        PED::SET_RELATIONSHIP_BETWEEN_GROUPS(1, companionGroupHash, Joaat("REL_CIVMALE"));
+        PED::SET_RELATIONSHIP_BETWEEN_GROUPS(1, companionGroupHash, Joaat("REL_CRIMINALS"));
+        PED::SET_RELATIONSHIP_BETWEEN_GROUPS(1, companionGroupHash, Joaat("REL_GANG"));
+        PED::SET_RELATIONSHIP_BETWEEN_GROUPS(1, companionGroupHash, Joaat("REL_COP"));
         PED::SET_RELATIONSHIP_BETWEEN_GROUPS(1, companionGroupHash, Joaat("REL_WILD_ANIMAL"));
 
         PED::SET_PED_COMBAT_ABILITY(ped.GetHandle(), 3);
@@ -123,7 +127,6 @@ namespace YimMenu::Submenus
         PED::SET_PED_COMBAT_RANGE(ped.GetHandle(), 3);
         PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 46, true);
         PED::SET_PED_FLEE_ATTRIBUTES(ped.GetHandle(), 0, false);
-        TASK::TASK_COMBAT_HATED_TARGETS_AROUND_PED(ped.GetHandle(), 150.0f, 0, 0);
 
         PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 5, true);
         PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 0, true);
@@ -294,233 +297,291 @@ namespace YimMenu::Submenus
         ENTITY::SET_ENTITY_AS_MISSION_ENTITY(pedHandle, true, true);
 
         Hash localGroupHash = killEmAllGroupHash;
-        FiberPool::Push([pedHandle, localGroupHash, selfPedHandle] {
-            std::chrono::steady_clock::time_point lastTargetScan = std::chrono::steady_clock::now();
-            std::chrono::steady_clock::time_point lastTargetSwitch = std::chrono::steady_clock::now();
-            int lastKnownTarget = 0;
-            
-            while (ENTITY::DOES_ENTITY_EXIST(pedHandle) && !ENTITY::IS_ENTITY_DEAD(pedHandle))
-            {
-                Vector3 pedPos = ENTITY::GET_ENTITY_COORDS(pedHandle, true, false);
-                auto now = std::chrono::steady_clock::now();
-                
-                if (lastKnownTarget != 0 && 
-                    std::chrono::duration_cast<std::chrono::milliseconds>(now - lastTargetSwitch).count() >= 5000)
-                {
-                    lastKnownTarget = 0;
-                    TASK::CLEAR_PED_TASKS(pedHandle, true, false);
-                }
 
-                if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastTargetScan).count() >= 300)
+        // FIBER FIX: Ensure fiber is cleaned up, yield in all loops, use value-capture for all handles
+        FiberPool::Push([pedHandle, localGroupHash, selfPedHandle]() mutable {
+            try { // FIBER FIX: catch exceptions to avoid fiber pool corruption
+                std::chrono::steady_clock::time_point lastTargetScan = std::chrono::steady_clock::now();
+                std::chrono::steady_clock::time_point lastTargetSwitch = std::chrono::steady_clock::now();
+                int lastKnownTarget = 0;
+
+                while (ENTITY::DOES_ENTITY_EXIST(pedHandle) && !ENTITY::IS_ENTITY_DEAD(pedHandle))
                 {
-                    lastTargetScan = now;
-                    
-                    int targetHandle = 0;
-                    float closestDistance = 1000.0f;
-                    
-                    for (int i = 0; i < 32; i++)
+                    Vector3 pedPos = ENTITY::GET_ENTITY_COORDS(pedHandle, true, false);
+                    auto now = std::chrono::steady_clock::now();
+
+                    // FIBER FIX: Add yield in long-running loop
+                    ScriptMgr::Yield(std::chrono::milliseconds(2));
+
+                    if (lastKnownTarget != 0 && 
+                        std::chrono::duration_cast<std::chrono::milliseconds>(now - lastTargetSwitch).count() >= 5000)
                     {
-                        if (NETWORK::NETWORK_IS_PLAYER_ACTIVE(i) && i != YimMenu::Self::GetPlayer().GetId())
+                        lastKnownTarget = 0;
+                        TASK::CLEAR_PED_TASKS(pedHandle, true, false);
+                    }
+
+                    if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastTargetScan).count() >= 300)
+                    {
+                        lastTargetScan = now;
+
+                        int targetHandle = 0;
+                        float closestDistance = 1000.0f;
+
+                        for (int i = 0; i < 32; i++)
                         {
-                            int playerPed = PLAYER::GET_PLAYER_PED(i);
-                            if (ENTITY::DOES_ENTITY_EXIST(playerPed) && !ENTITY::IS_ENTITY_DEAD(playerPed))
+                            if (NETWORK::NETWORK_IS_PLAYER_ACTIVE(i) && i != YimMenu::Self::GetPlayer().GetId())
                             {
-                                Vector3 playerPos = ENTITY::GET_ENTITY_COORDS(playerPed, true, false);
-                                float distance = MISC::GET_DISTANCE_BETWEEN_COORDS(pedPos.x, pedPos.y, pedPos.z, playerPos.x, playerPos.y, playerPos.z, true);
-                                if (distance < closestDistance)
+                                int playerPed = PLAYER::GET_PLAYER_PED(i);
+                                if (ENTITY::DOES_ENTITY_EXIST(playerPed) && !ENTITY::IS_ENTITY_DEAD(playerPed))
                                 {
-                                    closestDistance = distance;
-                                    targetHandle = playerPed;
+                                    Vector3 playerPos = ENTITY::GET_ENTITY_COORDS(playerPed, true, false);
+                                    float distance = MISC::GET_DISTANCE_BETWEEN_COORDS(pedPos.x, pedPos.y, pedPos.z, playerPos.x, playerPos.y, playerPos.z, true);
+                                    if (distance < closestDistance)
+                                    {
+                                        closestDistance = distance;
+                                        targetHandle = playerPed;
+                                    }
+                                }
+                            }
+                        }
+
+                        // FIBER FIX: Add yield in tight search loop
+                        ScriptMgr::Yield(std::chrono::milliseconds(1));
+
+                        if (targetHandle == 0)
+                        {
+                            int closestPed = 0;
+                            if (PED::GET_CLOSEST_PED(pedPos.x, pedPos.y, pedPos.z, 200.0f, true, true, &closestPed, true, true, true, -1))
+                            {
+                                if (ENTITY::DOES_ENTITY_EXIST(closestPed) && closestPed != pedHandle && closestPed != selfPedHandle)
+                                {
+                                    Hash targetGroup = PED::GET_PED_RELATIONSHIP_GROUP_HASH(closestPed);
+                                    Hash targetModel = ENTITY::GET_ENTITY_MODEL(closestPed);
+                                    bool isEssential = PED::GET_PED_CONFIG_FLAG(closestPed, 223, true);
+
+                                    bool isBlacklisted = blacklistedModels.find(targetModel) != blacklistedModels.end();
+
+                                    if (targetGroup != Joaat("REL_WILD_ANIMAL") && 
+                                        targetGroup != Joaat("REL_DOMESTIC_ANIMAL") &&
+                                        targetGroup != localGroupHash &&
+                                        !ENTITY::IS_ENTITY_DEAD(closestPed) &&
+                                        !isEssential &&
+                                        !isBlacklisted)
+                                    {
+                                        Vector3 targetPos = ENTITY::GET_ENTITY_COORDS(closestPed, true, false);
+                                        float distance = MISC::GET_DISTANCE_BETWEEN_COORDS(pedPos.x, pedPos.y, pedPos.z, targetPos.x, targetPos.y, targetPos.z, true);
+                                        if (distance < closestDistance)
+                                        {
+                                            closestDistance = distance;
+                                            targetHandle = closestPed;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        ScriptMgr::Yield(std::chrono::milliseconds(1));
+
+                        if (targetHandle != 0 && (targetHandle != lastKnownTarget || 
+                            !ENTITY::DOES_ENTITY_EXIST(lastKnownTarget) || 
+                            ENTITY::IS_ENTITY_DEAD(lastKnownTarget)))
+                        {
+                            lastKnownTarget = targetHandle;
+                            lastTargetSwitch = now;
+                            TASK::CLEAR_PED_TASKS(pedHandle, true, false);
+                            TASK::TASK_COMBAT_PED(pedHandle, targetHandle, 0, 16);
+                            TASK::TASK_COMBAT_HATED_TARGETS_AROUND_PED(pedHandle, 200.0f, 0, 0);
+
+                            Hash currentWeapon;
+                            if (WEAPON::GET_CURRENT_PED_WEAPON(pedHandle, &currentWeapon, true, 0, false))
+                            {
+                                if (currentWeapon == Joaat("WEAPON_UNARMED"))
+                                {
+                                    WEAPON::SET_CURRENT_PED_WEAPON(pedHandle, Joaat("WEAPON_MELEE_HATCHET_MELEEONLY"), true, 0, false, false);
                                 }
                             }
                         }
                     }
-                    
-                    if (targetHandle == 0)
+
+                    if (!PED::IS_PED_IN_COMBAT(pedHandle, 0))
                     {
-                        int closestPed = 0;
-                        if (PED::GET_CLOSEST_PED(pedPos.x, pedPos.y, pedPos.z, 200.0f, true, true, &closestPed, true, true, true, -1))
+                        TASK::TASK_COMBAT_HATED_TARGETS_AROUND_PED(pedHandle, 200.0f, 0, 0);
+                    }
+
+                    if (ENTITY::GET_ENTITY_HEALTH(pedHandle) < 800)
+                    {
+                        ENTITY::SET_ENTITY_HEALTH(pedHandle, 1000, 0);
+                    }
+
+                    ScriptMgr::Yield(std::chrono::milliseconds(100));
+                }
+
+                if (ENTITY::DOES_ENTITY_EXIST(pedHandle))
+                {
+                    TASK::CLEAR_PED_TASKS_IMMEDIATELY(pedHandle, false, true);
+                    int tempHandle = pedHandle;
+                    ENTITY::SET_ENTITY_AS_NO_LONGER_NEEDED(&tempHandle);
+                    ENTITY::DELETE_ENTITY(&tempHandle);
+                }
+            } catch (const std::exception& ex) {
+                LOG("Fiber exception in ApplyKillEmAllSettings loop: " << ex.what());
+            } catch (...) {
+                LOG("Unknown fiber exception in ApplyKillEmAllSettings loop");
+            }
+        });
+
+        auto blip = MAP::BLIP_ADD_FOR_ENTITY(Joaat("BLIP_STYLE_ENEMY"), pedHandle);
+        MAP::BLIP_ADD_MODIFIER(blip, Joaat("BLIP_MODIFIER_ENEMY_GANG"));
+    }
+
+static void ApplyBodyGuardSettings(YimMenu::Ped& ped)
+{
+    static Hash bodyGuardPosseGroupHash = 0;
+    static bool bodyGuardPosseGroupInitialized = false;
+
+    if (!ENTITY::DOES_ENTITY_EXIST(ped.GetHandle()))
+        return;
+
+    if (!bodyGuardPosseGroupInitialized)
+    {
+        if (!PED::ADD_RELATIONSHIP_GROUP("BODYGUARD_POSSE", &bodyGuardPosseGroupHash))
+            return;
+        bodyGuardPosseGroupInitialized = true;
+    }
+
+    PED::SET_PED_RELATIONSHIP_GROUP_HASH(ped.GetHandle(), bodyGuardPosseGroupHash);
+
+    int selfPedHandle = Self::GetPed().GetHandle();
+    if (ENTITY::DOES_ENTITY_EXIST(selfPedHandle))
+    {
+        PED::SET_RELATIONSHIP_BETWEEN_GROUPS(1, bodyGuardPosseGroupHash, PED::GET_PED_RELATIONSHIP_GROUP_HASH(selfPedHandle));
+    }
+    PED::SET_RELATIONSHIP_BETWEEN_GROUPS(0, bodyGuardPosseGroupHash, Joaat("REL_WILD_ANIMAL"));
+    PED::SET_RELATIONSHIP_BETWEEN_GROUPS(0, bodyGuardPosseGroupHash, Joaat("REL_CIVMALE"));
+    PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, bodyGuardPosseGroupHash, Joaat("REL_CRIMINALS"));
+    PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, bodyGuardPosseGroupHash, Joaat("REL_GANG"));
+    PED::SET_RELATIONSHIP_BETWEEN_GROUPS(0, bodyGuardPosseGroupHash, Joaat("REL_COP"));
+    PED::SET_RELATIONSHIP_BETWEEN_GROUPS(0, bodyGuardPosseGroupHash, Joaat("PLAYER"));
+
+    PED::SET_PED_CAN_BE_TARGETTED_BY_PLAYER(ped.GetHandle(), YimMenu::Self::GetPlayer().GetId(), false);
+
+    PED::SET_PED_COMBAT_ABILITY(ped.GetHandle(), 3);
+    PED::SET_PED_COMBAT_MOVEMENT(ped.GetHandle(), 3);
+    PED::SET_PED_COMBAT_RANGE(ped.GetHandle(), 3);
+    PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 46, true);
+    PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 5, true);
+    PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 0, true);
+    PED::SET_PED_FLEE_ATTRIBUTES(ped.GetHandle(), 0, false);
+    PED::SET_PED_SEEING_RANGE(ped.GetHandle(), 500.0f);
+    PED::SET_PED_HEARING_RANGE(ped.GetHandle(), 500.0f);
+
+    PED::SET_PED_LASSO_HOGTIE_FLAG(ped.GetHandle(), static_cast<int>(LassoFlags::LHF_CAN_BE_LASSOED), false);
+    PED::SET_PED_LASSO_HOGTIE_FLAG(ped.GetHandle(), static_cast<int>(LassoFlags::LHF_CAN_BE_LASSOED_BY_FRIENDLY_AI), false);
+    PED::SET_PED_LASSO_HOGTIE_FLAG(ped.GetHandle(), static_cast<int>(LassoFlags::LHF_CAN_BE_LASSOED_BY_FRIENDLY_PLAYERS), false);
+    PED::SET_PED_LASSO_HOGTIE_FLAG(ped.GetHandle(), static_cast<int>(LassoFlags::LHF_DISABLE_IN_MP), true);
+
+    ped.SetConfigFlag(PedConfigFlag::DisableEvasiveStep, false);
+    ped.SetConfigFlag(PedConfigFlag::DisableExplosionReactions, false);
+    ped.SetConfigFlag(PedConfigFlag::CanAttackFriendly, true);
+    ped.SetConfigFlag(PedConfigFlag::_0x16A14D9A, false);
+    ped.SetConfigFlag(PedConfigFlag::DisableShockingEvents, false);
+    ped.SetConfigFlag(PedConfigFlag::DisableHorseGunshotFleeResponse, false);
+    ped.SetConfigFlag(PedConfigFlag::TreatDislikeAsHateWhenInCombat, true);
+    ped.SetConfigFlag(PedConfigFlag::TreatNonFriendlyAsHateWhenInCombat, true);
+    PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped.GetHandle(), false);
+
+    int group = PED::GET_PED_GROUP_INDEX(YimMenu::Self::GetPed().GetHandle());
+    if (!PED::DOES_GROUP_EXIST(group))
+    {
+        group = PED::CREATE_GROUP(0);
+        PED::SET_PED_AS_GROUP_LEADER(YimMenu::Self::GetPed().GetHandle(), group, true);
+    }
+    PED::SET_PED_AS_GROUP_MEMBER(ped.GetHandle(), group);
+
+    Hash localGroupHash = bodyGuardPosseGroupHash;
+    FiberPool::Push([pedHandle = ped.GetHandle(), localGroupHash] {
+        bool vehicleEntryPending = false;
+        int playerOutOfVehicleTicks = 0;
+        while (ENTITY::DOES_ENTITY_EXIST(pedHandle))
+        {
+            YimMenu::Ped playerPed = Self::GetPed();
+            if (!playerPed.IsValid() || ENTITY::IS_ENTITY_DEAD(pedHandle))
+                break;
+
+            int nearestAttackerHandle = 0;
+            Vector3 playerPos = playerPed.GetPosition();
+
+            if (PED::GET_CLOSEST_PED(playerPos.x, playerPos.y, playerPos.z, 50.0f, 0, 1, &nearestAttackerHandle, 1, 0, 0, -1) &&
+                nearestAttackerHandle != 0)
+            {
+                YimMenu::Ped nearestAttacker(nearestAttackerHandle);
+                if (nearestAttackerHandle != pedHandle && nearestAttackerHandle != playerPed.GetHandle() &&
+                    ENTITY::DOES_ENTITY_EXIST(nearestAttackerHandle))
+                {
+                    if (!PED::IS_PED_IN_COMBAT(nearestAttacker.GetHandle(), playerPed.GetHandle()))
+                    {
+                        nearestAttackerHandle = 0;
+                    }
+                }
+                else
+                {
+                    nearestAttackerHandle = 0;
+                }
+            }
+
+            if (nearestAttackerHandle != 0)
+            {
+                Hash attackerGroup = PED::GET_PED_RELATIONSHIP_GROUP_HASH(nearestAttackerHandle);
+                if (attackerGroup == Joaat("REL_COP"))
+                {
+                    PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, localGroupHash, Joaat("REL_COP"));
+                }
+                if (PED::IS_PED_IN_ANY_VEHICLE(pedHandle, false))
+                {
+                    int pedVehicle = PED::GET_VEHICLE_PED_IS_USING(pedHandle);
+                    if (ENTITY::DOES_ENTITY_EXIST(pedVehicle))
+                    {
+                        TASK::TASK_LEAVE_VEHICLE(pedHandle, pedVehicle, 0, 0);
+                    }
+                }
+                TASK::TASK_COMBAT_PED(pedHandle, nearestAttackerHandle, 0, 16);
+                vehicleEntryPending = false;
+                playerOutOfVehicleTicks = 0;
+            }
+            else
+            {
+                float minDistance = 50.0f;
+                int wantedTargetHandle = 0;
+                for (int i = 0; i < 32; i++)
+                {
+                    if (NETWORK::NETWORK_IS_PLAYER_ACTIVE(i) && i != YimMenu::Self::GetPlayer().GetId())
+                    {
+                        int wantedLevel = PLAYER::GET_PLAYER_WANTED_LEVEL(i);
+                        if (wantedLevel > 0)
                         {
-                            if (ENTITY::DOES_ENTITY_EXIST(closestPed) && closestPed != pedHandle && closestPed != selfPedHandle)
+                            int otherPlayerHandle = PLAYER::GET_PLAYER_PED(i);
+                            if (ENTITY::DOES_ENTITY_EXIST(otherPlayerHandle))
                             {
-                                Hash targetGroup = PED::GET_PED_RELATIONSHIP_GROUP_HASH(closestPed);
-                                Hash targetModel = ENTITY::GET_ENTITY_MODEL(closestPed);
-                                bool isEssential = PED::GET_PED_CONFIG_FLAG(closestPed, 223, true);
-                                
-                                bool isBlacklisted = blacklistedModels.find(targetModel) != blacklistedModels.end();
-                                
-                                if (targetGroup != Joaat("REL_WILD_ANIMAL") && 
-                                    targetGroup != Joaat("REL_DOMESTIC_ANIMAL") &&
-                                    targetGroup != localGroupHash &&
-                                    !ENTITY::IS_ENTITY_DEAD(closestPed) &&
-                                    !isEssential &&
-                                    !isBlacklisted)
+                                YimMenu::Ped otherPlayerPed(otherPlayerHandle);
+                                if (otherPlayerPed.IsValid() && !otherPlayerPed.IsDead())
                                 {
-                                    Vector3 targetPos = ENTITY::GET_ENTITY_COORDS(closestPed, true, false);
-                                    float distance = MISC::GET_DISTANCE_BETWEEN_COORDS(pedPos.x, pedPos.y, pedPos.z, targetPos.x, targetPos.y, targetPos.z, true);
-                                    if (distance < closestDistance)
+                                    Vector3 otherPos = otherPlayerPed.GetPosition();
+                                    float distance = MISC::GET_DISTANCE_BETWEEN_COORDS(
+                                        playerPos.x, playerPos.y, playerPos.z,
+                                        otherPos.x, otherPos.y, otherPos.z, true);
+                                    if (distance < minDistance)
                                     {
-                                        closestDistance = distance;
-                                        targetHandle = closestPed;
+                                        minDistance = distance;
+                                        wantedTargetHandle = otherPlayerHandle;
                                     }
                                 }
                             }
                         }
                     }
-                    
-                    if (targetHandle != 0 && (targetHandle != lastKnownTarget || 
-                        !ENTITY::DOES_ENTITY_EXIST(lastKnownTarget) || 
-                        ENTITY::IS_ENTITY_DEAD(lastKnownTarget)))
-                    {
-                        lastKnownTarget = targetHandle;
-                        lastTargetSwitch = now;
-                        TASK::CLEAR_PED_TASKS(pedHandle, true, false);
-                        TASK::TASK_COMBAT_PED(pedHandle, targetHandle, 0, 16);
-                        TASK::TASK_COMBAT_HATED_TARGETS_AROUND_PED(pedHandle, 200.0f, 0, 0);
-                        
-                        Hash currentWeapon;
-                        if (WEAPON::GET_CURRENT_PED_WEAPON(pedHandle, &currentWeapon, true, 0, false))
-                        {
-                            if (currentWeapon == Joaat("WEAPON_UNARMED"))
-                            {
-                                WEAPON::SET_CURRENT_PED_WEAPON(pedHandle, Joaat("WEAPON_MELEE_HATCHET_MELEEONLY"), true, 0, false, false);
-                            }
-                        }
-                    }
-                }
-                
-                if (!PED::IS_PED_IN_COMBAT(pedHandle, 0))
-                {
-                    TASK::TASK_COMBAT_HATED_TARGETS_AROUND_PED(pedHandle, 200.0f, 0, 0);
-                }
-                
-                if (ENTITY::GET_ENTITY_HEALTH(pedHandle) < 800)
-                {
-                    ENTITY::SET_ENTITY_HEALTH(pedHandle, 1000, 0);
-                }
-                
-                ScriptMgr::Yield(std::chrono::milliseconds(100));
-            }
-            
-            if (ENTITY::DOES_ENTITY_EXIST(pedHandle))
-            {
-                TASK::CLEAR_PED_TASKS_IMMEDIATELY(pedHandle, false, true);
-                int tempHandle = pedHandle;
-                ENTITY::SET_ENTITY_AS_NO_LONGER_NEEDED(&tempHandle);
-                ENTITY::DELETE_ENTITY(&tempHandle);
-            }
-        });
-        
-        auto blip = MAP::BLIP_ADD_FOR_ENTITY(Joaat("BLIP_STYLE_ENEMY"), pedHandle);
-        MAP::BLIP_ADD_MODIFIER(blip, Joaat("BLIP_MODIFIER_ENEMY_GANG"));
-    }
-
-    static void ApplyBodyGuardSettings(YimMenu::Ped& ped)
-    {
-        static Hash bodyGuardPosseGroupHash = 0;
-        static bool bodyGuardPosseGroupInitialized = false;
-
-        if (!ENTITY::DOES_ENTITY_EXIST(ped.GetHandle()))
-        {
-            return;
-        }
-
-        if (!bodyGuardPosseGroupInitialized)
-        {
-            if (!PED::ADD_RELATIONSHIP_GROUP("BODYGUARD_POSSE", &bodyGuardPosseGroupHash))
-            {
-                return;
-            }
-            bodyGuardPosseGroupInitialized = true;
-        }
-
-        PED::SET_PED_RELATIONSHIP_GROUP_HASH(ped.GetHandle(), bodyGuardPosseGroupHash);
-
-        int selfPedHandle = Self::GetPed().GetHandle();
-        if (ENTITY::DOES_ENTITY_EXIST(selfPedHandle))
-        {
-            PED::SET_RELATIONSHIP_BETWEEN_GROUPS(1, bodyGuardPosseGroupHash, PED::GET_PED_RELATIONSHIP_GROUP_HASH(selfPedHandle));
-        }
-        PED::SET_RELATIONSHIP_BETWEEN_GROUPS(0, bodyGuardPosseGroupHash, Joaat("REL_WILD_ANIMAL"));
-        PED::SET_RELATIONSHIP_BETWEEN_GROUPS(0, bodyGuardPosseGroupHash, Joaat("REL_CIVMALE"));
-        PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, bodyGuardPosseGroupHash, Joaat("REL_CRIMINALS"));
-        PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, bodyGuardPosseGroupHash, Joaat("REL_GANG"));
-        PED::SET_RELATIONSHIP_BETWEEN_GROUPS(0, bodyGuardPosseGroupHash, Joaat("REL_COP"));
-        PED::SET_RELATIONSHIP_BETWEEN_GROUPS(0, bodyGuardPosseGroupHash, Joaat("PLAYER"));
-
-        PED::SET_PED_CAN_BE_TARGETTED_BY_PLAYER(ped.GetHandle(), YimMenu::Self::GetPlayer().GetId(), false);
-
-        PED::SET_PED_COMBAT_ABILITY(ped.GetHandle(), 3);
-        PED::SET_PED_COMBAT_MOVEMENT(ped.GetHandle(), 3);
-        PED::SET_PED_COMBAT_RANGE(ped.GetHandle(), 3);
-        PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 46, true);
-        PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 5, true);
-        PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 0, true);
-        PED::SET_PED_FLEE_ATTRIBUTES(ped.GetHandle(), 0, false);
-        PED::SET_PED_SEEING_RANGE(ped.GetHandle(), 500.0f);
-        PED::SET_PED_HEARING_RANGE(ped.GetHandle(), 500.0f);
-
-        PED::SET_PED_LASSO_HOGTIE_FLAG(ped.GetHandle(), static_cast<int>(LassoFlags::LHF_CAN_BE_LASSOED), false);
-        PED::SET_PED_LASSO_HOGTIE_FLAG(ped.GetHandle(), static_cast<int>(LassoFlags::LHF_CAN_BE_LASSOED_BY_FRIENDLY_AI), false);
-        PED::SET_PED_LASSO_HOGTIE_FLAG(ped.GetHandle(), static_cast<int>(LassoFlags::LHF_CAN_BE_LASSOED_BY_FRIENDLY_PLAYERS), false);
-        PED::SET_PED_LASSO_HOGTIE_FLAG(ped.GetHandle(), static_cast<int>(LassoFlags::LHF_DISABLE_IN_MP), true);
-
-        ped.SetConfigFlag(PedConfigFlag::DisableEvasiveStep, false);
-        ped.SetConfigFlag(PedConfigFlag::DisableExplosionReactions, false);
-        ped.SetConfigFlag(PedConfigFlag::CanAttackFriendly, true);
-        ped.SetConfigFlag(PedConfigFlag::_0x16A14D9A, false);
-        ped.SetConfigFlag(PedConfigFlag::DisableShockingEvents, false);
-        ped.SetConfigFlag(PedConfigFlag::DisableHorseGunshotFleeResponse, false);
-        ped.SetConfigFlag(PedConfigFlag::TreatDislikeAsHateWhenInCombat, true);
-        ped.SetConfigFlag(PedConfigFlag::TreatNonFriendlyAsHateWhenInCombat, true);
-        PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped.GetHandle(), false);
-
-        int group = PED::GET_PED_GROUP_INDEX(YimMenu::Self::GetPed().GetHandle());
-        if (!PED::DOES_GROUP_EXIST(group))
-        {
-            group = PED::CREATE_GROUP(0);
-            PED::SET_PED_AS_GROUP_LEADER(YimMenu::Self::GetPed().GetHandle(), group, true);
-        }
-        PED::SET_PED_AS_GROUP_MEMBER(ped.GetHandle(), group);
-
-        Hash localGroupHash = bodyGuardPosseGroupHash;
-        FiberPool::Push([pedHandle = ped.GetHandle(), localGroupHash] {
-            bool vehicleEntryPending = false;
-            int playerOutOfVehicleTicks = 0;
-            while (ENTITY::DOES_ENTITY_EXIST(pedHandle))
-            {
-                YimMenu::Ped playerPed = Self::GetPed();
-                if (!playerPed.IsValid() || ENTITY::IS_ENTITY_DEAD(pedHandle))
-                    break;
-
-                int nearestAttackerHandle = 0;
-                Vector3 playerPos = playerPed.GetPosition();
-
-                if (PED::GET_CLOSEST_PED(playerPos.x, playerPos.y, playerPos.z, 50.0f, 0, 1, &nearestAttackerHandle, 1, 0, 0, -1) &&
-                    nearestAttackerHandle != 0)
-                {
-                    YimMenu::Ped nearestAttacker(nearestAttackerHandle);
-                    if (nearestAttackerHandle != pedHandle && nearestAttackerHandle != playerPed.GetHandle() &&
-                        ENTITY::DOES_ENTITY_EXIST(nearestAttackerHandle))
-                    {
-                        if (!PED::IS_PED_IN_COMBAT(nearestAttacker.GetHandle(), playerPed.GetHandle()))
-                        {
-                            nearestAttackerHandle = 0;
-                        }
-                    }
-                    else
-                    {
-                        nearestAttackerHandle = 0;
-                    }
                 }
 
-                if (nearestAttackerHandle != 0)
+                if (wantedTargetHandle != 0)
                 {
-                    Hash attackerGroup = PED::GET_PED_RELATIONSHIP_GROUP_HASH(nearestAttackerHandle);
-                    if (attackerGroup == Joaat("REL_COP"))
-                    {
-                        PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, localGroupHash, Joaat("REL_COP"));
-                    }
                     if (PED::IS_PED_IN_ANY_VEHICLE(pedHandle, false))
                     {
                         int pedVehicle = PED::GET_VEHICLE_PED_IS_USING(pedHandle);
@@ -529,227 +590,211 @@ namespace YimMenu::Submenus
                             TASK::TASK_LEAVE_VEHICLE(pedHandle, pedVehicle, 0, 0);
                         }
                     }
-                    TASK::TASK_COMBAT_PED(pedHandle, nearestAttackerHandle, 0, 16);
+                    TASK::TASK_COMBAT_PED(pedHandle, wantedTargetHandle, 0, 16);
                     vehicleEntryPending = false;
                     playerOutOfVehicleTicks = 0;
                 }
                 else
                 {
-                    float minDistance = 50.0f;
-                    int wantedTargetHandle = 0;
-                    for (int i = 0; i < 32; i++)
+                    bool playerInVehicle = PED::IS_PED_IN_ANY_VEHICLE(playerPed.GetHandle(), false);
+                    bool pedInVehicle = PED::IS_PED_IN_ANY_VEHICLE(pedHandle, false);
+                    bool playerOnMount = PED::IS_PED_ON_MOUNT(playerPed.GetHandle());
+                    bool pedOnMount = PED::IS_PED_ON_MOUNT(pedHandle);
+
+                    if (vehicleEntryPending && TASK::GET_SCRIPT_TASK_STATUS(pedHandle, Joaat("SCRIPT_TASK_ENTER_VEHICLE"), true) == 1)
                     {
-                        if (NETWORK::NETWORK_IS_PLAYER_ACTIVE(i) && i != YimMenu::Self::GetPlayer().GetId())
+                        ScriptMgr::Yield(std::chrono::milliseconds(500));
+                        continue;
+                    }
+
+                    // --- HORSE MOUNT LOGIC ---
+                    if (playerOnMount && !pedOnMount && !pedInVehicle)
+                    {
+                        // Correct use of GET_PED_NEARBY_PEDS (buffered)
+                        const int maxPeds = 32;
+                        int nearbyPeds[maxPeds] = {};
+                        // FIX: Pass all FOUR arguments as required by your Natives.hpp
+                        int found = PED::GET_PED_NEARBY_PEDS(pedHandle, nearbyPeds, 0, maxPeds);
+
+                        int closestHorse = 0;
+                        float minHorseDist = 9999.0f;
+                        Vector3 pedPos = ENTITY::GET_ENTITY_COORDS(pedHandle, true, true);
+
+                        int playerMount = PED::GET_MOUNT(playerPed.GetHandle());
+
+                        for (int i = 0; i < found; ++i)
                         {
-                            int wantedLevel = PLAYER::GET_PLAYER_WANTED_LEVEL(i);
-                            if (wantedLevel > 0)
+                            int candidate = nearbyPeds[i];
+                            if (candidate && ENTITY::DOES_ENTITY_EXIST(candidate)
+                                && !PED::IS_PED_HUMAN(candidate)
+                                && !PED::IS_PED_ON_MOUNT(candidate)
+                                && !ENTITY::IS_ENTITY_DEAD(candidate)
+                                && candidate != playerMount)
                             {
-                                int otherPlayerHandle = PLAYER::GET_PLAYER_PED(i);
-                                if (ENTITY::DOES_ENTITY_EXIST(otherPlayerHandle))
+                                Vector3 horsePos = ENTITY::GET_ENTITY_COORDS(candidate, true, true);
+                                float dist = MISC::GET_DISTANCE_BETWEEN_COORDS(
+                                    pedPos.x, pedPos.y, pedPos.z,
+                                    horsePos.x, horsePos.y, horsePos.z, true);
+                                if (dist < minHorseDist)
                                 {
-                                    YimMenu::Ped otherPlayerPed(otherPlayerHandle);
-                                    if (otherPlayerPed.IsValid() && !otherPlayerPed.IsDead())
-                                    {
-                                        Vector3 otherPos = otherPlayerPed.GetPosition();
-                                        float distance = MISC::GET_DISTANCE_BETWEEN_COORDS(
-                                            playerPos.x, playerPos.y, playerPos.z,
-                                            otherPos.x, otherPos.y, otherPos.z, true);
-                                        if (distance < minDistance)
-                                        {
-                                            minDistance = distance;
-                                            wantedTargetHandle = otherPlayerHandle;
-                                        }
-                                    }
+                                    closestHorse = candidate;
+                                    minHorseDist = dist;
                                 }
                             }
                         }
+                        if (closestHorse != 0)
+                        {
+                            TASK::TASK_MOUNT_ANIMAL(pedHandle, closestHorse, -1, -1, 1.0f, 1, 0, 0);
+                            vehicleEntryPending = false;
+                            playerOutOfVehicleTicks = 0;
+                            ScriptMgr::Yield(std::chrono::milliseconds(500));
+                            continue;
+                        }
                     }
+                    // --- END HORSE MOUNT LOGIC ---
 
-                    if (wantedTargetHandle != 0)
+                    if (playerInVehicle && !pedInVehicle && !vehicleEntryPending)
                     {
-                        if (PED::IS_PED_IN_ANY_VEHICLE(pedHandle, false))
+                        int vehicle = PED::GET_VEHICLE_PED_IS_USING(playerPed.GetHandle());
+                        if (ENTITY::DOES_ENTITY_EXIST(vehicle))
+                        {
+                            if (VEHICLE::IS_VEHICLE_SEAT_FREE(vehicle, -2))
+                            {
+                                TASK::TASK_ENTER_VEHICLE(pedHandle, vehicle, -1, -2, 1.0f, 1, 0);
+                                vehicleEntryPending = true;
+                                playerOutOfVehicleTicks = 0;
+                            }
+                            else
+                            {
+                                TASK::TASK_FOLLOW_TO_OFFSET_OF_ENTITY(
+                                    pedHandle, playerPed.GetHandle(),
+                                    -1.0f, -1.0f, 0.0f, 3.0f, -1, 2.0f, true, false, false, true, false, false);
+                                vehicleEntryPending = false;
+                                playerOutOfVehicleTicks = 0;
+                            }
+                        }
+                    }
+                    else if (!playerInVehicle && pedInVehicle)
+                    {
+                        playerOutOfVehicleTicks++;
+                        if (playerOutOfVehicleTicks >= 2)
                         {
                             int pedVehicle = PED::GET_VEHICLE_PED_IS_USING(pedHandle);
                             if (ENTITY::DOES_ENTITY_EXIST(pedVehicle))
                             {
                                 TASK::TASK_LEAVE_VEHICLE(pedHandle, pedVehicle, 0, 0);
                             }
+                            vehicleEntryPending = false;
+                            playerOutOfVehicleTicks = 0;
                         }
-                        TASK::TASK_COMBAT_PED(pedHandle, wantedTargetHandle, 0, 16);
+                    }
+                    else if (!playerInVehicle && !pedInVehicle && !pedOnMount)
+                    {
+                        TASK::TASK_FOLLOW_TO_OFFSET_OF_ENTITY(
+                            pedHandle, playerPed.GetHandle(),
+                            -1.0f, -1.0f, 0.0f, 3.0f, -1, 2.0f, true, false, false, true, false, false);
                         vehicleEntryPending = false;
                         playerOutOfVehicleTicks = 0;
                     }
                     else
                     {
-                        bool playerInVehicle = PED::IS_PED_IN_ANY_VEHICLE(playerPed.GetHandle(), false);
-                        bool pedInVehicle = PED::IS_PED_IN_ANY_VEHICLE(pedHandle, false);
-
-                        if (vehicleEntryPending && TASK::GET_SCRIPT_TASK_STATUS(pedHandle, Joaat("SCRIPT_TASK_ENTER_VEHICLE"), true) == 1)
-                        {
-                            ScriptMgr::Yield(std::chrono::milliseconds(500));
-                            continue;
-                        }
-
-                        if (playerInVehicle && !pedInVehicle && !vehicleEntryPending)
-                        {
-                            int vehicle = PED::GET_VEHICLE_PED_IS_USING(playerPed.GetHandle());
-                            if (ENTITY::DOES_ENTITY_EXIST(vehicle))
-                            {
-                                if (PED::IS_PED_ON_MOUNT(playerPed.GetHandle()))
-                                {
-                                    int mount = PED::GET_MOUNT(playerPed.GetHandle());
-                                    if (ENTITY::DOES_ENTITY_EXIST(mount))
-                                    {
-                                        int closestPed = 0;
-                                        if (PED::GET_CLOSEST_PED(playerPos.x, playerPos.y, playerPos.z, 50.0f, true, false, &closestPed, true, true, true, 4))
-                                        {
-                                            if (ENTITY::DOES_ENTITY_EXIST(closestPed) && ENTITY::IS_ENTITY_A_PED(closestPed))
-                                            {
-                                                YimMenu::Ped closest(closestPed);
-                                                if (closest.IsAnimal() && !PED::IS_PED_ON_MOUNT(closestPed))
-                                                {
-                                                    TASK::TASK_MOUNT_ANIMAL(pedHandle, closestPed, -1, -1, 1.0f, 1, 0, 0);
-                                                    vehicleEntryPending = false;
-                                                    playerOutOfVehicleTicks = 0;
-                                                    ScriptMgr::Yield(std::chrono::milliseconds(500));
-                                                    continue;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                else if (VEHICLE::IS_VEHICLE_SEAT_FREE(vehicle, -2))
-                                {
-                                    TASK::TASK_ENTER_VEHICLE(pedHandle, vehicle, -1, -2, 1.0f, 1, 0);
-                                    vehicleEntryPending = true;
-                                    playerOutOfVehicleTicks = 0;
-                                }
-                                else
-                                {
-                                    TASK::TASK_FOLLOW_TO_OFFSET_OF_ENTITY(
-                                        pedHandle, playerPed.GetHandle(),
-                                        -1.0f, -1.0f, 0.0f, 3.0f, -1, 2.0f, true, false, false, true, false, false);
-                                    vehicleEntryPending = false;
-                                    playerOutOfVehicleTicks = 0;
-                                }
-                            }
-                        }
-                        else if (!playerInVehicle && pedInVehicle)
-                        {
-                            playerOutOfVehicleTicks++;
-                            if (playerOutOfVehicleTicks >= 2)
-                            {
-                                int pedVehicle = PED::GET_VEHICLE_PED_IS_USING(pedHandle);
-                                if (ENTITY::DOES_ENTITY_EXIST(pedVehicle))
-                                {
-                                    TASK::TASK_LEAVE_VEHICLE(pedHandle, pedVehicle, 0, 0);
-                                }
-                                vehicleEntryPending = false;
-                                playerOutOfVehicleTicks = 0;
-                            }
-                        }
-                        else if (!playerInVehicle && !pedInVehicle)
-                        {
-                            TASK::TASK_FOLLOW_TO_OFFSET_OF_ENTITY(
-                                pedHandle, playerPed.GetHandle(),
-                                -1.0f, -1.0f, 0.0f, 3.0f, -1, 2.0f, true, false, false, true, false, false);
-                            vehicleEntryPending = false;
-                            playerOutOfVehicleTicks = 0;
-                        }
-                        else
-                        {
-                            vehicleEntryPending = false;
-                            playerOutOfVehicleTicks = 0;
-                        }
+                        vehicleEntryPending = false;
+                        playerOutOfVehicleTicks = 0;
                     }
                 }
-
-                ScriptMgr::Yield(std::chrono::milliseconds(500));
             }
+            ScriptMgr::Yield(std::chrono::milliseconds(500));
+        }
 
-            if (ENTITY::DOES_ENTITY_EXIST(pedHandle))
-            {
-                TASK::CLEAR_PED_TASKS_IMMEDIATELY(pedHandle, false, true);
-                int tempHandle = pedHandle;
-                ENTITY::SET_ENTITY_AS_NO_LONGER_NEEDED(&tempHandle);
-                ENTITY::DELETE_ENTITY(&tempHandle);
-            }
-        });
+        if (ENTITY::DOES_ENTITY_EXIST(pedHandle))
+        {
+            TASK::CLEAR_PED_TASKS_IMMEDIATELY(pedHandle, false, true);
+            int tempHandle = pedHandle;
+            ENTITY::SET_ENTITY_AS_NO_LONGER_NEEDED(&tempHandle);
+            ENTITY::DELETE_ENTITY(&tempHandle);
+        }
+    });
 
-        auto blip = MAP::BLIP_ADD_FOR_ENTITY(Joaat("BLIP_STYLE_FRIEND"), ped.GetHandle());
-        MAP::BLIP_ADD_MODIFIER(blip, Joaat("BLIP_MODIFIER_FRIENDLY"));
-    }
+    auto blip = MAP::BLIP_ADD_FOR_ENTITY(Joaat("BLIP_STYLE_FRIEND"), ped.GetHandle());
+    MAP::BLIP_ADD_MODIFIER(blip, Joaat("BLIP_MODIFIER_FRIENDLY"));
+}
 
     static const std::map<std::string, std::set<int>> legendaryVariants = {
         {"a_c_alligator_02", {0}},  
         {"a_c_bear_01", {9}},
         {"a_c_beaver_01", {1}},
         {"a_c_bighornram_01", {12}},
-        {"a_c_boar_01", {0}},
+        {"a_c_boar_01", {1}},
         {"a_c_boarlegendary_01", {0}},
-        {"a_c_buck_01", {4}},
+        {"a_c_buck_01", {3}},
         {"a_c_buffalo_01", {4}},
         {"a_c_cougar_01", {2, 5}},
         {"a_c_coyote_01", {1}},
         {"a_c_elk_01", {1}},
-        {"a_c_fishbluegil_01", {0}},
-        {"a_c_fishbullheadcat_01", {0}},
-        {"a_c_fishchainpickerel_01", {0}},
-        {"a_c_fishchannelcatfish_01", {0}},
-        {"a_c_fishlargemouthbass_01", {0}},
-        {"a_c_fishlongnosegar_01", {0}},
-        {"a_c_fishmuskie_01", {0}},
-        {"a_c_fishnorthernpike_01", {0}},
-        {"a_c_fishperch_01", {0}},
-        {"a_c_fishrainbowtrout_01", {0}},
-        {"a_c_fishredfinpickerel_01", {0}},
-        {"a_c_fishrockbass_01", {0}},
-        {"a_c_fishsmallmouthbass_01", {0}},
-        {"a_c_fishsockeyesalmon_01", {0}},
+        {"a_c_fishbluegil_01_ms", {1}},
+        {"a_c_fishbullheadcat_01_ms", {1}},
+        {"a_c_fishchainpickerel_01_ms", {1}},
+        {"a_c_fishchannelcatfish_01_lg", {2}},
+        {"a_c_fishlakesturgeon_01_lg", {1}},
+        {"a_c_fishlargemouthbass_01_lg", {1}},
+        {"a_c_fishlongnosegar_01_lg", {5}},
+        {"a_c_fishmuskie_01_lg", {4}},
+        {"a_c_fishnorthernpike_01_lg", {6}},
+        {"a_c_fishperch_01_ms", {1}},
+        {"a_c_fishrainbowtrout_01_lg", {1}},
+        {"a_c_fishredfinpickerel_01_ms", {1}},
+        {"a_c_fishrockbass_01_ms", {1}},
+        {"a_c_fishsmallmouthbass_01_lg", {1}},
+        {"a_c_fishsalmonsockeye_01_lg", {1}},
         {"a_c_fox_01", {3}},
         {"a_c_moose_01", {6}},
         {"a_c_panther_01", {1}},
         {"a_c_wolf", {3}},
-        {"mp_a_c_alligator_01", {0, 1, 2, 3}},
+        {"mp_a_c_alligator_01", {0, 1, 2}},
         {"mp_a_c_bear_01", {1, 2, 3}},
         {"mp_a_c_beaver_01", {0, 1, 2}},
-        {"mp_a_c_bighornram_01", {0, 1, 2, 3}},
+        {"mp_a_c_bighornram_01", {0, 1, 2}},
         {"mp_a_c_boar_01", {0, 1, 2, 3}},
         {"mp_a_c_buck_01", {2, 3, 4, 5}},
         {"mp_a_c_buffalo_01", {0, 1, 2}},
         {"mp_a_c_cougar_01", {0, 1, 2}}, 
         {"mp_a_c_coyote_01", {0, 1, 2}},
         {"mp_a_c_elk_01", {1, 2, 3}},
-        {"mp_a_c_fox_01", {0, 1, 2}},
+        {"mp_a_c_fox_01", {0, 1, 2, 3}},
+        {"mp_a_c_moose_01", {1, 2, 3}},
+        {"mp_a_c_panther_01", {0, 1, 2}},
+        {"mp_a_c_possum_01", {1}},
+        {"mp_a_c_rabbit_01", {1}},
         {"mp_a_c_wolf_01", {0, 1, 2}},
     };
 
     static const std::map<std::string, int> legendaryPresets = {
         {"a_c_alligator_02", 0},
-        {"a_c_bear_01", 9},
-        {"a_c_beaver_01", 2},
-        {"a_c_bighornram_01", 15},
-        {"a_c_boar_01", 2},
-        {"a_c_boarlegendary_01", 1},
-        {"a_c_buck_01", 5},
-        {"a_c_buffalo_01", 13},
-        {"a_c_cougar_01", 4},
-        {"a_c_coyote_01", 5},
-        {"a_c_elk_01", 6},
-        {"a_c_fishbluegil_01", 1},
-        {"a_c_fishbullheadcat_01", 1},
-        {"a_c_fishchainpickerel_01", 1},
-        {"a_c_fishchannelcatfish_01", 1},
-        {"a_c_fishlargemouthbass_01", 1},
-        {"a_c_fishlongnosegar_01", 1},
-        {"a_c_fishmuskie_01", 1},
-        {"a_c_fishnorthernpike_01", 1},
-        {"a_c_fishperch_01", 1},
-        {"a_c_fishrainbowtrout_01", 1},
-        {"a_c_fishredfinpickerel_01", 1},
-        {"a_c_fishrockbass_01", 1},
-        {"a_c_fishsmallmouthbass_01", 1},
-        {"a_c_fishsockeyesalmon_01", 1},
+        {"a_c_bear_01", 10},
+        {"a_c_beaver_01", 3},
+        {"a_c_bighornram_01", 18},
+        {"a_c_boar_01", 3},
+        {"a_c_boarlegendary_01", 0},
+        {"a_c_buck_01", 4},
+        {"a_c_buffalo_01", 14},
+        {"a_c_cougar_01", 5},
+        {"a_c_coyote_01", 6},
+        {"a_c_elk_01", 7},
+        {"a_c_fishbluegil_01_ms", 1},
+        {"a_c_fishbullheadcat_01_ms", 1},
+        {"a_c_fishchainpickerel_01_ms", 1},
+        {"a_c_fishchannelcatfish_01_lg", 2},
+        {"a_c_fishlakesturgeon_01_lg", 3},
+        {"a_c_fishlargemouthbass_01_lg", 1},
+        {"a_c_fishlongnosegar_01_lg", 5},
+        {"a_c_fishmuskie_01_lg", 4},
+        {"a_c_fishnorthernpike_01_lg", 6},
+        {"a_c_fishperch_01_ms", 1},
+        {"a_c_fishrainbowtrout_01_lg", 1},
+        {"a_c_fishredfinpickerel_01_ms", 1},
+        {"a_c_fishrockbass_01_ms", 1},
+        {"a_c_fishsmallmouthbass_01_lg", 1},
+        {"a_c_fishsalmonsockeye_01_lg", 1},
         {"a_c_fox_01", 6},
         {"a_c_moose_01", 6},
         {"a_c_panther_01", 4},
@@ -765,7 +810,11 @@ namespace YimMenu::Submenus
         {"mp_a_c_coyote_01", 3},
         {"mp_a_c_elk_01", 3},
         {"mp_a_c_fox_01", 3},
-        {"mp_a_c_wolf_01", 10},
+        {"mp_a_c_moose_01", 3},
+        {"mp_a_c_panther_01", 3},
+        {"mp_a_c_possum_01", 0},
+        {"mp_a_c_rabbit_01", 0},
+        {"mp_a_c_wolf_01", 4},
     };
 
     static const std::map<std::string, int> pedVariations = {
@@ -2758,7 +2807,7 @@ namespace YimMenu::Submenus
 
         struct LastSpawnedPed {
             uint32_t modelHash;
-            int variationIndex; 
+            int variationIndex;
         };
 
         static std::string pedModelBuffer;
@@ -2778,6 +2827,8 @@ namespace YimMenu::Submenus
         static int maxOutfitPresets = 0;
         static std::vector<YimMenu::Ped> spawnedPeds;
         static std::vector<LastSpawnedPed> last10Spawned;
+
+        static bool perfectAnimalToggle = false;
 
         float item_height = ImGui::GetTextLineHeightWithSpacing();
         float max_dropdown_height = (item_height * 10.0f) + (ImGui::GetStyle().WindowPadding.y * 2.0f);
@@ -2857,89 +2908,10 @@ namespace YimMenu::Submenus
             ImGui::EndPopup();
         }
 
-        const char* comboLabel = hashInputBuffer.empty() ? "Enter hash (e.g., 0x9770DD23)" : hashInputBuffer.c_str();
-        if (false && ImGui::BeginCombo("Model Hash", comboLabel, 0))
-        {
-            static char hashInput[32] = "";
-            ImGui::InputText("##hashinput", hashInput, sizeof(hashInput));
-            if (ImGui::Button("Apply Hash"))
-            {
-                std::string input = hashInput;
-                if (input.substr(0, 2) == "0x" || input.substr(0, 2) == "0X")
-                {
-                    try
-                    {
-                        Hash modelHash = std::stoul(input, nullptr, 16);
-                        if (STREAMING::IS_MODEL_VALID(modelHash))
-                        {
-                            bool foundModel = false;
-                            for (const auto& [hash, model] : Data::g_PedModels)
-                            {
-                                if (hash == modelHash)
-                                {
-                                    if (model) pedModelBuffer = model;
-                                    else pedModelBuffer = input;
-                                    foundModel = true;
-                                    break;
-                                }
-                            }
-                            if (!foundModel)
-                            {
-                                pedModelBuffer = input;
-                            }
-                            hashInputBuffer = input;
-                            if (std::find(recentHashes.begin(), recentHashes.end(), input) == recentHashes.end())
-                            {
-                                recentHashes.push_back(input);
-                                if (recentHashes.size() > 10)
-                                    recentHashes.erase(recentHashes.begin());
-                            }
-                        }
-                    }
-                    catch (...)
-                    {
-                    }
-                }
-            }
-
-            for (const auto& hash : recentHashes)
-            {
-                if (ImGui::Selectable(hash.c_str()))
-                {
-                    hashInputBuffer = hash;
-                    try
-                    {
-                        Hash modelHash = std::stoul(hash, nullptr, 16);
-                        bool foundModel = false;
-                        for (const auto& [h, model] : Data::g_PedModels)
-                        {
-                            if (h == modelHash)
-                            {
-                                if (model) pedModelBuffer = model;
-                                else pedModelBuffer = hash;
-                                foundModel = true;
-                                break;
-                            }
-                        }
-                        if (!foundModel)
-                        {
-                            pedModelBuffer = hash;
-                        }
-                    }
-                    catch (...)
-                    {
-                    }
-                }
-            }
-            ImGui::EndCombo();
-        }
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Enter a model hash (e.g., 0x9770DD23) or select a recent hash.");
-
         std::string searchKey = pedModelBuffer;
         std::transform(searchKey.begin(), searchKey.end(), searchKey.begin(), ::tolower);
         searchKey.erase(std::remove_if(searchKey.begin(), searchKey.end(), ::isspace), searchKey.end());
-        
+
         maxOutfitPresets = 0;
         bool foundVariation = false;
         if (!searchKey.empty())
@@ -2956,21 +2928,17 @@ namespace YimMenu::Submenus
                     break;
                 }
             }
-
             if (!foundVariation && legendaryPresets.count(searchKey))
             {
                 foundVariation = true;
                 maxOutfitPresets = 11;
             }
         }
-
-        // Enhanced legendary detection logic
         bool is_legendary = false;
         auto it_legend = legendaryVariants.find(searchKey);
         if (it_legend != legendaryVariants.end()) {
             is_legendary = it_legend->second.count(selectedOutfitPreset) > 0;
         }
-
         if (foundVariation && maxOutfitPresets > 0)
         {
             ImGui::Text("Outfit Variation:");
@@ -2978,7 +2946,6 @@ namespace YimMenu::Submenus
             {
                 LOG("Selected outfit preset changed to: " << selectedOutfitPreset);
             }
-
             if (is_legendary)
             {
                 ImGui::SameLine();
@@ -2993,15 +2960,35 @@ namespace YimMenu::Submenus
             }
         }
 
-        ImGui::Checkbox("Spawn Dead", &dead);
-        ImGui::Checkbox("Sedated", &sedated);
-        ImGui::Checkbox("Invisible", &invis);
-        ImGui::Checkbox("GodMode", &godmode);
-        ImGui::Checkbox("Frozen", &freeze);
-        ImGui::Checkbox("Companion", &companion);
-        ImGui::Checkbox("Kill'em All", &kill_em_all);
-        ImGui::Checkbox("BodyGuard", &body_guard);
 
+        ImGui::Columns(2, nullptr, false);
+
+        ImGui::Checkbox("Spawn Dead", &dead);
+        ImGui::NextColumn();
+        ImGui::Checkbox("Perfect Animal", &perfectAnimalToggle);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Use with Spawn Dead for perfect Animals/Pelts");
+        ImGui::NextColumn();
+
+        ImGui::Checkbox("Sedated", &sedated);
+        ImGui::NextColumn();
+        ImGui::Checkbox("Invisible", &invis);
+        ImGui::NextColumn();
+
+        ImGui::Checkbox("GodMode", &godmode);
+        ImGui::NextColumn();
+        ImGui::Checkbox("Frozen", &freeze);
+        ImGui::NextColumn();
+
+        ImGui::Checkbox("Companion", &companion);
+        ImGui::NextColumn();
+        ImGui::Checkbox("Kill'em All", &kill_em_all);
+        ImGui::NextColumn();
+
+        ImGui::Checkbox("BodyGuard", &body_guard); if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) { ImGui::SetTooltip("No More than 4 at a time"); }
+        ImGui::NextColumn();
+
+        ImGui::Columns(1);
         if (companion)
         {
             static const std::pair<int, const char*> groupFormations[] = {
@@ -3091,10 +3078,6 @@ namespace YimMenu::Submenus
                 if (dead)
                 {
                     ped.Kill();
-                    if (ped.IsAnimal())
-                    {
-                        ped.SetQuality(3);
-                    }
                 }
 
                 ped.SetInvincible(godmode);
@@ -3104,7 +3087,7 @@ namespace YimMenu::Submenus
                     ped.SetScale(scale);
 
                 ped.SetConfigFlag(PedConfigFlag::IsTranquilized, sedated);
-                
+
                 if (foundVariation && selectedOutfitPreset >= 0 && selectedOutfitPreset < maxOutfitPresets)
                 {
                     PED::_EQUIP_META_PED_OUTFIT_PRESET(ped.GetHandle(), selectedOutfitPreset, is_legendary);
@@ -3123,6 +3106,16 @@ namespace YimMenu::Submenus
                     ApplyCompanionSettings(ped);
                     PED::SET_GROUP_FORMATION(PED::GET_PED_GROUP_INDEX(ped.GetHandle()), formation);
                     DECORATOR::DECOR_SET_INT(ped.GetHandle(), "SH_CMP_companion", 0);
+                }
+
+                if (perfectAnimalToggle && ped.IsAnimal())
+                {
+                    ped.SetQuality(2); 
+                    int maxHealth = ENTITY::GET_ENTITY_MAX_HEALTH(ped.GetHandle(), true);
+                    ENTITY::SET_ENTITY_MAX_HEALTH(ped.GetHandle(), maxHealth);
+                    ENTITY::SET_ENTITY_HEALTH(ped.GetHandle(), maxHealth, 0);
+                    float maxStamina = ped.GetMaxStamina();
+                    ped.SetStamina(maxStamina);
                 }
 
                 spawnedPeds.push_back(ped);
@@ -3173,19 +3166,19 @@ namespace YimMenu::Submenus
                 PLAYER::SET_PLAYER_MODEL(Self::GetPlayer().GetId(), modelHash, false);
                 Self::Update();
                 PED::_SET_RANDOM_OUTFIT_VARIATION(Self::GetPed().GetHandle(), true);
-                
+
                 if (foundVariation && selectedOutfitPreset >= 0 && selectedOutfitPreset < maxOutfitPresets)
                 {
                     PED::_EQUIP_META_PED_OUTFIT_PRESET(Self::GetPed().GetHandle(), selectedOutfitPreset, is_legendary);
                 }
-                
+
                 LastSpawnedPed last;
                 last.modelHash = modelHash;
                 last.variationIndex = foundVariation ? selectedOutfitPreset : -1;
                 last10Spawned.push_back(last);
                 if (last10Spawned.size() > 10)
                     last10Spawned.erase(last10Spawned.begin());
-STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(modelHash);
+                STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(modelHash);
             });
         }
 

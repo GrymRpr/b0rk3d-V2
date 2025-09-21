@@ -1,18 +1,107 @@
 #include "core/commands/LoopedCommand.hpp"
+#include "core/commands/IntCommand.hpp"
 #include "game/backend/Self.hpp"
 #include "game/rdr/Enums.hpp"
 #include "game/rdr/Natives.hpp"
 #include "game/rdr/Entity.hpp"
 #include <vector>
+#include <unordered_set>
 #include <cmath>
+#include <cstdint>
+#include <algorithm>
 
 namespace YimMenu::Features
 {
+	static const std::unordered_set<uint32_t> LegendaryAnimalModels = {
+		0x7C8C8F9B, 
+		0xF4426A3C, 
+		0x3285B9C2, 
+		0x5C2CF7D3, 
+		0x8F4E85F6, 
+		0x9D8A9E7C, 
+		0x369B3025, 
+		0xD6C9B5E5, 
+		0xE2C7E283,
+		0xE5D7A4B6, 
+		0xCFFB7A1F, 
+		0xD6F7E5B6, 
+		0x6C8F8F6D, 
+		0xE42F3D6E, 
+		0xE0C8B8A8,
+		0x1B4A3583,
+		0xA02E1A7D,
+		0xE00F020F, 
+		0xE4DC153D, 
+		0x7C2D83B4, 
+		0xC7A3B4A4, 
+	};
+
 	class OldDeadeye : public LoopedCommand
 	{
 		using LoopedCommand::LoopedCommand;
 
 		bool wasDeadeyeActive = false;
+
+		IntCommand _DeadeyeTaggingConfig{
+			"deadeyetaggingconfig",
+			"Deadeye Tagging Config",
+			"Set tagging filter (6=Enemies, 7=All, 8=Animals, 9=Custom)",
+			7 
+		};
+
+		static bool IsLegendaryAnimal(int entityHandle)
+		{
+			if (!ENTITY::DOES_ENTITY_EXIST(entityHandle))
+				return false;
+
+			uint32_t model = ENTITY::GET_ENTITY_MODEL(entityHandle);
+			return LegendaryAnimalModels.find(model) != LegendaryAnimalModels.end();
+		}
+
+		static bool IsAnimal(int entityHandle)
+		{
+			if (!ENTITY::DOES_ENTITY_EXIST(entityHandle))
+				return false;
+			return !PED::IS_PED_HUMAN(entityHandle);
+		}
+
+		static bool ShouldTagEntity(int entityHandle, int filter)
+		{
+			if (!ENTITY::DOES_ENTITY_EXIST(entityHandle) || ENTITY::IS_ENTITY_DEAD(entityHandle))
+				return false;
+
+			if (filter == 7) 
+				return true;
+
+			if (filter == 6) 
+			{
+				if (PED::IS_PED_HUMAN(entityHandle))
+				{
+					if (PED::IS_PED_SHOOTING(entityHandle) || PED::IS_PED_IN_COMBAT(entityHandle, 0))
+						return true;
+				}
+				else
+				{
+					if (PED::IS_PED_IN_COMBAT(entityHandle, PLAYER::PLAYER_PED_ID()))
+						return true;
+				}
+				return false;
+			}
+
+			if (filter == 8) 
+			{
+				if (IsAnimal(entityHandle) || IsLegendaryAnimal(entityHandle))
+					return true;
+				return false;
+			}
+
+			if (filter == 9) 
+			{
+				return true;
+			}
+
+			return false;
+		}
 
 		virtual void OnTick() override
 		{
@@ -50,6 +139,10 @@ namespace YimMenu::Features
 
 			if (_DeadeyeTagging.GetState())
 			{
+				int filter = _DeadeyeTaggingConfig.GetState();
+				if (filter < 6) filter = 6;
+				if (filter > 9) filter = 9;
+
 				rage::fvector3 camPos = CAM::GET_GAMEPLAY_CAM_COORD();
 				rage::fvector3 camRot = CAM::GET_GAMEPLAY_CAM_ROT(2);
 				rage::fvector3 camDir = RotationToDirection(camRot);
@@ -112,6 +205,9 @@ namespace YimMenu::Features
 					if (!ENTITY::IS_ENTITY_A_PED(target.handle))
 						continue;
 
+					if (!ShouldTagEntity(target.handle, filter))
+						continue;
+
 					rage::fvector3 toTarget = target.position - camPos;
 					float distance = std::sqrt(toTarget.x * toTarget.x + toTarget.y * toTarget.y + toTarget.z * toTarget.z);
 					if (distance > MaxScanDistance)
@@ -138,7 +234,7 @@ namespace YimMenu::Features
 
 				if (closestTargetHandle != 0)
 				{
-					PLAYER::_SET_DEADEYE_TAGGING_CONFIG(playerId, 6);
+					PLAYER::_SET_DEADEYE_TAGGING_CONFIG(playerId, filter);
 					PLAYER::_SET_DEADEYE_TAGGING_ENABLED(playerId, true);
 				}
 				else
@@ -208,4 +304,4 @@ namespace YimMenu::Features
 	};
 
 	static OldDeadeye _OldDeadeye{"olddeadeye", "Old Deadeye", "Enhanced Deadeye experience with perfect accuracy and configurable features"};
-}  //Praveshan
+}

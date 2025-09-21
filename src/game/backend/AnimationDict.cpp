@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
-#include <cstdlib>  // for std::getenv
+#include <cstdlib>
 
 using json = nlohmann::json;
 
@@ -97,7 +97,7 @@ namespace YimMenu
 		}
 		try
 		{
-			out << j.dump(2) << std::endl; // pretty print
+			out << j.dump(2) << std::endl;
 		}
 		catch (const std::exception& ex)
 		{
